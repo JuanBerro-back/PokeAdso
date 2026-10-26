@@ -389,7 +389,10 @@
       if (!this.material.map) return;
       const row = DIR_ROW[this.dir] ?? 0;
       const col = ((Number(frame) || 0) % 4 + 4) % 4;
-      this.material.map.offset.set(col * 0.25, row * 0.25);
+      // El spritesheet se sube con flipY = true, así que el origen v = 0 es la
+      // fila inferior de la imagen; para mostrar la fila de la dirección hay que
+      // desplazar 1 - (fila + 1) * 0.25.
+      this.material.map.offset.set(col * 0.25, 0.75 - row * 0.25);
       this.material.map.repeat.set(0.25, 0.25);
     }
 
@@ -1741,7 +1744,7 @@
         roundedRect(ctx, 88, 44, 80, 22, 10);
         ctx.fill();
         const texture = canvasTexture(canvas, { smooth: false });
-        texture.flipY = false;
+        texture.flipY = true;
         texture.repeat.set(0.25, 0.25);
         return texture;
       });
@@ -1774,7 +1777,7 @@
           ctx.putImageData(pixels, 0, 0);
         }
         const texture = canvasTexture(canvas, { smooth: false });
-        texture.flipY = false;
+        texture.flipY = true;
         texture.repeat.set(0.25, 0.25);
         return texture;
       });
