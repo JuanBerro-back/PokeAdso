@@ -545,7 +545,9 @@
       this.sheetImage = null;
       this.sheetReady = false;
       this.localVariant = getStoredVariant();
-      this.cameraLookAhead = this.theme.name === 'hotel' ? -4.0 : (this.imageUrl && this.theme.indoor ? -1.6 : 0);
+      // La cámara se centra siempre en el entrenador (sin adelanto lateral ni
+      // en profundidad) para que el personaje quede en el centro del encuadre.
+      this.cameraLookAhead = 0;
       this.terminalGroup = null;
       this.fountain = null;
       this.arenaGlow = null;
