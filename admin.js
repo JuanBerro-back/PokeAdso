@@ -206,9 +206,9 @@ window.PVP_BUILD_VERSION = 23;
   }
 
   const STARTERS = [
-    { id: 'treecko', dexId: 252, name: 'Treecko', type: 'Planta', hp: 92, maxHp: 92, attack: 18, image: 'https://images.wikidexcdn.net/mwuploads/wikidex/0/08/latest/20080926023345/Treecko_E.gif' },
-    { id: 'torchic', dexId: 255, name: 'Torchic', type: 'Fuego', hp: 86, maxHp: 86, attack: 21, image: 'https://images.wikidexcdn.net/mwuploads/wikidex/d/d3/latest/20090206005624/Torchic_E.gif' },
-    { id: 'mudkip',  dexId: 258, name: 'Mudkip',  type: 'Agua',   hp: 100, maxHp: 100, attack: 16, image: 'https://images.wikidexcdn.net/mwuploads/wikidex/7/71/latest/20091217193111/Mudkip_E.gif' }
+    { id: 'treecko', dexId: 252, name: 'Treecko', type: 'Planta', hp: 19, maxHp: 19, attack: 9, image: 'https://images.wikidexcdn.net/mwuploads/wikidex/0/08/latest/20080926023345/Treecko_E.gif', baseStats: { hp: 40, attack: 45, defense: 35, sp_attack: 65, sp_defense: 55, speed: 70 } },
+    { id: 'torchic', dexId: 255, name: 'Torchic', type: 'Fuego', hp: 19, maxHp: 19, attack: 11, image: 'https://images.wikidexcdn.net/mwuploads/wikidex/d/d3/latest/20090206005624/Torchic_E.gif', baseStats: { hp: 45, attack: 60, defense: 40, sp_attack: 70, sp_defense: 50, speed: 45 } },
+    { id: 'mudkip',  dexId: 258, name: 'Mudkip',  type: 'Agua',   hp: 20, maxHp: 20, attack: 12, image: 'https://images.wikidexcdn.net/mwuploads/wikidex/7/71/latest/20091217193111/Mudkip_E.gif', baseStats: { hp: 50, attack: 70, defense: 50, sp_attack: 50, sp_defense: 50, speed: 40 } }
   ];
 
   // Catálogo completo de los 414 Pokémon con sprites animados de Pokémon Esmeralda (WikiDex)
@@ -282,6 +282,8 @@ window.PVP_BUILD_VERSION = 23;
         catalog.sort((a, b) => a.id - b.id);
         WILD_POKEMON = catalog;
         FULL_CATALOG_LOADED = true;
+        // Si la partida ya estaba cargada, recalcula el equipo con las stats reales.
+        refreshTeamStatsFromCatalog();
       }
     } catch (err) {
       console.warn('Catálogo completo no disponible, usando Esmeralda:', err);
@@ -289,6 +291,21 @@ window.PVP_BUILD_VERSION = 23;
   }
 
   loadFullPokemonCatalog();
+
+  // ===== Tabla de evoluciones por nivel (data/evoluciones.json) =====
+  let EVOLUTIONS = {};
+
+  async function loadEvolutions() {
+    try {
+      const response = await fetch('data/evoluciones.json', { cache: 'force-cache' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      EVOLUTIONS = await response.json();
+      window.EVOLUTIONS = EVOLUTIONS;
+    } catch (err) {
+      console.warn('Tabla de evoluciones no disponible:', err);
+    }
+  }
+  loadEvolutions();
 
   // ===== Base de datos de movimientos reales (data/pokemon_moves.json) =====
   let POKEMON_MOVES_DB = { moves: {}, pokemon: {} };
@@ -446,122 +463,269 @@ window.PVP_BUILD_VERSION = 23;
     const name = String(entry.especie || entry.name || '?');
     const level = entry.nivel || entry.level || 5;
     const base = findCatalogMon(name);
-    const hp = base ? scaleStat(Number(base.hp) || 50, level) : scaleStat(50, level);
-    const atk = base ? scaleStat(Number(base.attack) || 30, level) : scaleStat(30, level);
-    const def = base ? scaleStat(Number(base.defense) || 30, level) : scaleStat(30, level);
-    const satk = base ? scaleStat(Number(base.sp_attack) || 30, level) : scaleStat(30, level);
-    const sdef = base ? scaleStat(Number(base.sp_defense) || 30, level) : scaleStat(30, level);
-    const spd = base ? scaleStat(Number(base.speed) || 50, level) : scaleStat(50, level);
-    const types = base && Array.isArray(base.types) && base.types.length
-      ? base.types.slice()
-      : (base && base.type ? String(base.type).split('/').map(s => s.trim()) : [String(entry.tipo || 'Normal')]);
-    const mon = {
-      name,
-      level,
-      tipo: types.join('/'),
-      type: types.join('/'),
-      types,
-      dexId: base ? (base.dexId || base.id) : null,
-      hp,
-      maxHp: hp,
-      currentHp: hp,
-      attack: atk,
-      defense: def,
-      sp_attack: satk,
-      sp_defense: sdef,
-      speed: spd,
-      image: base ? base.image : getPokemonSpriteUrl(name, entry.dexId || null),
-      isWild: false
-    };
+    let mon = (base && window.PokemonProgress)
+      ? window.PokemonProgress.createMon(base, level, { fullHp: true })
+      : null;
+    if (!mon) {
+      const hp = base ? scaleStat(Number(base.hp) || 50, level) : scaleStat(50, level);
+      const atk = base ? scaleStat(Number(base.attack) || 30, level) : scaleStat(30, level);
+      const def = base ? scaleStat(Number(base.defense) || 30, level) : scaleStat(30, level);
+      const satk = base ? scaleStat(Number(base.sp_attack) || 30, level) : scaleStat(30, level);
+      const sdef = base ? scaleStat(Number(base.sp_defense) || 30, level) : scaleStat(30, level);
+      const spd = base ? scaleStat(Number(base.speed) || 50, level) : scaleStat(50, level);
+      const types = base && Array.isArray(base.types) && base.types.length
+        ? base.types.slice()
+        : (base && base.type ? String(base.type).split('/').map(s => s.trim()) : [String(entry.tipo || 'Normal')]);
+      mon = {
+        name,
+        level,
+        tipo: types.join('/'),
+        type: types.join('/'),
+        types,
+        dexId: base ? (base.dexId || base.id) : null,
+        hp,
+        maxHp: hp,
+        currentHp: hp,
+        attack: atk,
+        defense: def,
+        sp_attack: satk,
+        sp_defense: sdef,
+        speed: spd,
+        image: base ? base.image : getPokemonSpriteUrl(name, entry.dexId || null),
+        isWild: false
+      };
+    }
+    mon.isWild = false;
     mon.moves = getMovesForMon(mon, level).map(m => ({ ...m, currentPp: m.pp, maxPp: m.maxPp }));
     return mon;
   }
 
   loadPokemonMoves();
 
-  let trainerState = {
-    starter: null,
-    token: null,
-    collection: [],
-    level: 5,
-    xp: 0,
-    medals: [],
-    inventory: {
-      coins: 500,
-      // Legacy compat (kept for saves that have them)
-      potions: 0,
-      pokeballs: 0,
-      // Inventario basado en ITEMS_DATABASE
-      items: {
-        'Potion': 5,
-        'Super Potion': 2,
-        'Antidote': 3,
-        'Revive': 1,
-        'Full Heal': 1,
-        'Pokeball': 10,
-        'Great Ball': 3,
-        'Escape Rope': 2,
-        'Repel': 3,
-        'Pecha Berry': 2,
-        'Cheri Berry': 2,
-        'Oran Berry': 3,
-        'X Attack': 1,
-        'X Defend': 1
-      }
-    },
-    shinyMode: false,
-    defeatedTrainers: [],
-    visitedTowns: ['littleroot_town']
-  };
+  function createBaseTrainerState() {
+    return {
+      starter: null,
+      token: null,
+      collection: [],
+      level: 5,
+      xp: 0,
+      medals: [],
+      inventory: {
+        coins: 500,
+        // Legacy compat (kept for saves that have them)
+        potions: 0,
+        pokeballs: 0,
+        // Inventario basado en ITEMS_DATABASE
+        items: {
+          'Potion': 5,
+          'Super Potion': 2,
+          'Antidote': 3,
+          'Revive': 1,
+          'Full Heal': 1,
+          'Pokeball': 10,
+          'Great Ball': 3,
+          'Escape Rope': 2,
+          'Repel': 3,
+          'Pecha Berry': 2,
+          'Cheri Berry': 2,
+          'Oran Berry': 3,
+          'X Attack': 1,
+          'X Defend': 1
+        }
+      },
+      shinyMode: false,
+      defeatedTrainers: [],
+      visitedTowns: ['littleroot_town']
+    };
+  }
+
+  let trainerState = createBaseTrainerState();
   window.trainerState = trainerState;
 
+  const SAVE_VERSION = 2;
+  let saveTimer = null;
+
   function trainerStorageKey() {
-    return `hoennTrainer_${currentUser?.accountId || 'guest'}`;
+    const user = (currentUser && (currentUser.username || currentUser.accountId)) || 'guest';
+    return `hoennTrainer_${String(user).toLowerCase()}`;
+  }
+
+  // Crea el compañero inicial con estadísticas reales de Gen 3.
+  function createDefaultStarter() {
+    const chosen = Number(window.__chosenStarterId || 2);
+    const starter = STARTERS[Math.max(0, Math.min(STARTERS.length - 1, chosen - 1))] || STARTERS[1];
+    const mon = window.PokemonProgress
+      ? window.PokemonProgress.createMon(starter, 5, { fullHp: true })
+      : { ...starter, level: 5, xp: 125, hp: starter.hp, maxHp: starter.hp, currentHp: starter.hp };
+    mon.moves = getMovesForMon(mon, mon.level).map(m => ({ ...m, currentPp: m.pp, maxPp: m.maxPp }));
+    return mon;
+  }
+
+  function normalizePokemon(mon) {
+    if (!mon) return mon;
+    if (window.PokemonProgress) {
+      // Si el catálogo completo aún no llegó, usa las stats ya guardadas en el
+      // Pokémon en lugar de las estimaciones del listado rápido de Esmeralda.
+      window.PokemonProgress.ensureMon(mon, {
+        catalog: FULL_CATALOG_LOADED ? WILD_POKEMON : [],
+        rename: false
+      });
+    }
+    if (!Array.isArray(mon.moves) || !mon.moves.length) {
+      mon.moves = getMovesForMon(mon, mon.level || 5).map(m => ({ ...m, currentPp: m.pp, maxPp: m.maxPp }));
+    }
+    mon.currentHp = Math.max(0, Math.min(mon.maxHp || mon.hp || 1, Number(mon.currentHp)));
+    return mon;
+  }
+
+  // Recalcula el equipo con el catálogo completo (stats reales) cuando termina de cargar.
+  function refreshTeamStatsFromCatalog() {
+    if (!FULL_CATALOG_LOADED || !trainerState) return;
+    const team = [];
+    if (trainerState.starter) team.push(trainerState.starter);
+    (trainerState.collection || []).forEach(mon => {
+      if (mon && mon !== trainerState.starter) team.push(mon);
+    });
+    if (!team.length) return;
+    team.forEach(normalizePokemon);
+    applyMovesToAllTeam();
+    if (currentUser) saveTrainerProgress();
   }
 
   function loadTrainerState() {
-    try {
-      const stored = sessionStorage.getItem(trainerStorageKey());
-      if (stored) {
-        trainerState = JSON.parse(stored);
-      } else {
-        // Inicializar con Torchic por defecto
-        trainerState.starter = { ...STARTERS[1], level: 5, currentHp: 86 };
-        trainerState.collection = [trainerState.starter];
+    // Parte siempre de un estado limpio: evita que la partida de otra cuenta
+    // o de una sesión anterior se filtre al cambiar de usuario.
+    trainerState = createBaseTrainerState();
+    activeMapKey = 'littleroot_town';
+    playerPos = { x: 230, y: 240, dir: 'down', moving: false };
+
+    const key = trainerStorageKey();
+    let stored = null;
+    try { stored = localStorage.getItem(key); } catch { /* almacenamiento bloqueado */ }
+
+    // Migración: las partidas antiguas vivían en sessionStorage.
+    if (!stored) {
+      try {
+        stored = sessionStorage.getItem(key) || sessionStorage.getItem('hoennTrainer_guest');
+        if (stored) {
+          localStorage.setItem(key, stored);
+          sessionStorage.removeItem(key);
+        }
+      } catch { /* almacenamiento bloqueado */ }
+    }
+
+    if (stored) {
+      try {
+        const saved = JSON.parse(stored);
+        trainerState = { ...trainerState, ...saved };
+      } catch {
+        console.warn('Partida guardada corrupta; se crea una nueva.');
       }
-    } catch {
-      trainerState.starter = { ...STARTERS[1], level: 5, currentHp: 86 };
-      trainerState.collection = [trainerState.starter];
     }
-    window.trainerState = trainerState;
-    if (!trainerState.token) {
-      trainerState.token = 'tk_' + Math.random().toString(36).substr(2, 9);
-      saveTrainerProgress();
-    }
-    // Migrar inventario legacy a nuevo sistema de items
+
+    // Inventario y campos obligatorios
     if (!trainerState.inventory) trainerState.inventory = { coins: 500, items: {} };
     if (!trainerState.inventory.items) trainerState.inventory.items = {};
     if (!Array.isArray(trainerState.defeatedTrainers)) trainerState.defeatedTrainers = [];
-    // Migrar potions legacy
+    if (!Array.isArray(trainerState.visitedTowns) || !trainerState.visitedTowns.length) {
+      trainerState.visitedTowns = ['littleroot_town'];
+    }
+    if (!Array.isArray(trainerState.medals)) trainerState.medals = [];
+    if (!Array.isArray(trainerState.collection)) trainerState.collection = [];
+
+    // Migrar inventario legacy
     if (trainerState.inventory.potions > 0) {
       trainerState.inventory.items['Potion'] = (trainerState.inventory.items['Potion'] || 0) + trainerState.inventory.potions;
       trainerState.inventory.potions = 0;
     }
-    // Migrar pokeballs legacy
     if (trainerState.inventory.pokeballs > 0) {
       trainerState.inventory.items['Pokeball'] = (trainerState.inventory.items['Pokeball'] || 0) + trainerState.inventory.pokeballs;
       trainerState.inventory.pokeballs = 0;
     }
+
+    // Compañero activo
+    if (!trainerState.starter || !trainerState.starter.name) {
+      trainerState.starter = createDefaultStarter();
+    }
+
+    // El compañero activo y la colección deben ser el MISMO objeto,
+    // para que la XP y los niveles se guarden en un único sitio.
+    const collection = trainerState.collection;
+    const active = trainerState.starter;
+    const activeId = active.dexId || active.id;
+    const matchIndex = collection.findIndex(p => p && (p === active || (
+      String(p.name || '').toLowerCase() === String(active.name || '').toLowerCase() &&
+      Number(p.dexId || p.id || 0) === Number(activeId || 0)
+    )));
+    if (matchIndex >= 0) {
+      Object.assign(collection[matchIndex], active);
+      trainerState.starter = collection[matchIndex];
+    } else {
+      collection.unshift(active);
+      trainerState.starter = active;
+    }
+
+    // Normaliza estadísticas, XP y PS de todo el equipo.
+    collection.forEach(normalizePokemon);
+    trainerState.level = trainerState.starter.level || 5;
+    trainerState.xp = trainerState.starter.xp || 0;
+
+    // Restaurar la última posición explorada.
+    const allMaps = {
+      ...(window.HOENN_FULL_MAPS || {}),
+      ...(window.HOENN_INTERIORS || {}),
+      ...(window.EMERALD_REFERENCE_MAPS || {})
+    };
+    if (trainerState.mapKey && allMaps[trainerState.mapKey]) {
+      activeMapKey = trainerState.mapKey;
+    }
+    if (trainerState.position && Number.isFinite(Number(trainerState.position.x)) && Number.isFinite(Number(trainerState.position.y))) {
+      playerPos = {
+        x: Number(trainerState.position.x),
+        y: Number(trainerState.position.y),
+        dir: trainerState.position.dir || 'down',
+        moving: false
+      };
+    }
+
+    window.trainerState = trainerState;
+    if (!trainerState.token) trainerState.token = 'tk_' + Math.random().toString(36).slice(2, 11);
+
     // Asignar el avatar del protagonista (Brendan / Bruno) en el panel de usuario
     if (dom.userAvatar) {
       dom.userAvatar.innerHTML = `<div class="user-avatar-brendan" title="${Validate.escHtml(currentUser?.username || 'Brendan')}"></div>`;
     }
     applyMovesToAllTeam();
+    saveTrainerProgress();
   }
 
   function saveTrainerProgress() {
-    sessionStorage.setItem(trainerStorageKey(), JSON.stringify(trainerState));
+    if (!trainerState) return;
+    trainerState.saveVersion = SAVE_VERSION;
+    trainerState.savedAt = Date.now();
+    trainerState.mapKey = activeMapKey;
+    trainerState.position = { x: playerPos.x, y: playerPos.y, dir: playerPos.dir };
+    if (trainerState.starter) {
+      trainerState.level = trainerState.starter.level || trainerState.level || 5;
+      trainerState.xp = trainerState.starter.xp || 0;
+    }
+    try {
+      localStorage.setItem(trainerStorageKey(), JSON.stringify(trainerState));
+    } catch (e) {
+      console.warn('No se pudo guardar la partida:', e);
+    }
   }
+
+  // Guardado diferido para no escribir en cada paso.
+  function scheduleSave() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveTrainerProgress, 700);
+  }
+
+  window.addEventListener('beforeunload', saveTrainerProgress);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') saveTrainerProgress();
+  });
 
   /* ============================================================
      5. CARTOGRAFÍA UNIFICADA DE ESMERALDA (HOENN_FULL_MAPS)
@@ -705,7 +869,238 @@ window.PVP_BUILD_VERSION = 23;
   }
 
   let worldTileRenderer = null;
+  let world3dRenderer = null;
   let collectedItems = {};
+  let pendingBattleEffect = null;
+
+  window.App = window.App || {};
+
+  const WORLD3D_PREF_KEY = 'pokepoke.world3d';
+  const BANDANA_PREF_KEY = 'pokepoke.bandana';
+
+  function world3dEnabledByPreference() {
+    try { return localStorage.getItem(WORLD3D_PREF_KEY) !== '0'; } catch (error) { return true; }
+  }
+
+  function storedBandana() {
+    try {
+      const value = Number(localStorage.getItem(BANDANA_PREF_KEY));
+      return Number.isFinite(value) ? Math.max(0, Math.min(5, value)) : 0;
+    } catch (error) {
+      return 0;
+    }
+  }
+
+  function destroyWorld3D() {
+    if (world3dRenderer) {
+      try { world3dRenderer.dispose(); } catch (error) { console.warn('[3D] Error al liberar el mapa:', error); }
+      world3dRenderer = null;
+    }
+    window.world3dRenderer = null;
+    if (window.Battle3D) window.Battle3D.dispose();
+  }
+
+  function updateWorld3DToggle() {
+    const button = document.getElementById('toggle3dBtn');
+    const hud = document.getElementById('world3dHud');
+    const active = !!(world3dRenderer && world3dRenderer.enabled);
+    if (hud) hud.style.display = active ? '' : 'none';
+    if (!button) return;
+    button.classList.toggle('is-active', active);
+    button.innerHTML = active
+      ? '<i class="fas fa-cube"></i> 3D'
+      : '<i class="fas fa-border-all"></i> 2D';
+    button.title = active ? 'Cambiar al mapa GBA 2D' : 'Activar el mapa 3D';
+  }
+
+  function initWorld3D(container, mapData, dims) {
+    destroyWorld3D();
+    if (!window.World3D || !window.THREE) return;
+    try {
+      world3dRenderer = new window.World3D(container, {
+        view: worldTileRenderer,
+        map: mapData,
+        mapId: dims.mapId,
+        name: dims.name,
+        width: dims.width,
+        height: dims.height,
+        image: dims.image,
+        obstacles: dims.obstacles,
+        npcs: dims.npcs,
+        items: dims.items,
+        exits: dims.exits,
+        signs: dims.signs,
+        seats: dims.seats,
+        flowerPatches: dims.flowerPatches,
+        isDark: dims.isDark,
+        onPlayerClick: (player) => {
+          if (window.LobbyManager) window.LobbyManager.openPlayerContextMenu(player);
+        },
+        onNpcClick: (npc) => {
+          if (npc && npc.id) App.interactWith(npc.id);
+        },
+        onSeatClick: (seat) => {
+          if (window.LobbyManager) window.LobbyManager.sitDown(seat);
+        },
+        onTerminal: () => App.openBandanaPicker(),
+        onReception: () => {
+          if (activeMapKey === 'grand_hotel_lobby') App.interactWith('hotel_receptionist');
+        }
+      });
+      world3dRenderer.setVariant(storedBandana());
+      world3dRenderer.setEnabled(world3dEnabledByPreference());
+      if (inMapBattle) world3dRenderer.setPaused(true);
+      window.world3dRenderer = world3dRenderer;
+    } catch (error) {
+      console.warn('[3D] No se pudo iniciar el mapa 3D:', error);
+      if (world3dRenderer) {
+        try { world3dRenderer.dispose(); } catch (disposeError) { /* ignorar */ }
+        world3dRenderer = null;
+      }
+      container.querySelectorAll('.world3d-canvas').forEach((canvas) => canvas.remove());
+      if (worldTileRenderer) worldTileRenderer.renderSuppressed = false;
+    }
+    updateWorld3DToggle();
+  }
+
+  function renderLobbyPlayers() {
+    const list = document.getElementById('lobbyPlayersList');
+    const countEl = document.getElementById('lobbyOnlineCount');
+    if (!list) return;
+    const colors = (window.World3D && window.World3D.BANDANA_COLORS) || ['#76bd45', '#e66d61', '#5da7e8', '#a879d8', '#e6ad45', '#49bda7'];
+    const localName = (currentUser && currentUser.username) || (trainerState && trainerState.name) || 'Tú';
+    const players = [{ id: 'local', name: localName, variant: storedBandana(), local: true }];
+    if (window.MultiplayerClient && window.MultiplayerClient.otherPlayers) {
+      window.MultiplayerClient.otherPlayers.forEach((player, id) => {
+        if (!player) return;
+        if (String(player.id || id).toLowerCase() === String(localName).toLowerCase()) return;
+        players.push({ ...player, id, local: false });
+      });
+    }
+    if (countEl) countEl.textContent = String(players.length);
+    list.innerHTML = players.slice(0, 12).map((player) => {
+      const name = Validate.escHtml(String(player.name || player.id || 'Entrenador').slice(0, 16));
+      const styleMatch = String(player.avatar_style || player.avatarStyle || '').match(/^brendan:([0-5])$/);
+      const variant = ((Number(player.variant != null ? player.variant : (styleMatch ? styleMatch[1] : 0)) || 0) % colors.length + colors.length) % colors.length;
+      const initial = name.charAt(0).toUpperCase() || '?';
+      return `<span class="lobby-player-chip ${player.local ? 'me' : ''}" title="${name}">
+        <span class="lobby-player-dot" style="--swatch:${colors[variant]};">${initial}</span>${name}${player.local ? ' (tú)' : ''}
+      </span>`;
+    }).join('');
+    const log = document.getElementById('lobbyChatLog');
+    if (log && !log.dataset.ready) {
+      log.dataset.ready = '1';
+      log.innerHTML = '<div style="opacity:.55;padding:4px 2px;">La conversación del lobby aparecerá aquí. Saluda con un emote o escribe abajo.</div>';
+    }
+  }
+
+  function initBattle3D() {
+    if (!window.Battle3D) return;
+    const layer = document.getElementById('battle3dLayer');
+    if (!layer || !inMapBattle) {
+      pendingBattleEffect = null;
+      window.Battle3D.dispose();
+      return;
+    }
+    try {
+      window.Battle3D.mount(layer, {
+        opponent: inMapBattle.opponent,
+        player: (trainerState && trainerState.starter) || null
+      });
+      const effect = pendingBattleEffect;
+      pendingBattleEffect = null;
+      if (effect) {
+        setTimeout(() => {
+          if (!window.Battle3D) return;
+          if (effect === 'throw') window.Battle3D.playThrow();
+          else window.Battle3D.playAttack(effect);
+        }, 180);
+      }
+      if (world3dRenderer) world3dRenderer.setPaused(true);
+    } catch (error) {
+      console.warn('[3D] No se pudo iniciar la arena de combate:', error);
+      if (window.Battle3D) window.Battle3D.dispose();
+      layer.querySelectorAll('.battle3d-canvas').forEach((canvas) => canvas.remove());
+    }
+  }
+
+  window.App.toggleWorld3D = function() {
+    const next = !(world3dRenderer && world3dRenderer.enabled);
+    if (!world3dRenderer && worldTileRenderer) {
+      const container = document.getElementById('worldCanvasStage');
+      if (container) {
+        const fullMaps = {
+          ...(window.HOENN_FULL_MAPS || {}),
+          ...(window.HOENN_INTERIORS || {}),
+          ...(window.EMERALD_REFERENCE_MAPS || {})
+        };
+        const fallback = fullMaps[activeMapKey] || {};
+        initWorld3D(container, fallback, {
+          mapId: activeMapKey,
+          name: fallback.name || activeMapKey,
+          width: fallback.width || 640,
+          height: fallback.height || 512,
+          image: fallback.image || null,
+          obstacles: fallback.obstacles || [],
+          npcs: fallback.npcs || [],
+          items: fallback.items || [],
+          exits: fallback.exits || [],
+          signs: fallback.signs || [],
+          seats: fallback.seats || [],
+          flowerPatches: fallback.flowerPatches || [],
+          isDark: fallback.isDark || false
+        });
+      }
+    } else if (world3dRenderer) {
+      world3dRenderer.setEnabled(next);
+    }
+    try { localStorage.setItem(WORLD3D_PREF_KEY, next ? '1' : '0'); } catch (error) { /* almacenamiento bloqueado */ }
+    updateWorld3DToggle();
+  };
+
+  window.App.lobbyEmote = function(emoji) {
+    if (world3dRenderer) world3dRenderer.showEmote(emoji);
+    if (window.LobbyManager && typeof window.LobbyManager.sendChatMessage === 'function') {
+      window.LobbyManager.sendChatMessage(emoji, 'ROOM');
+    }
+  };
+
+  window.App.setBandana = function(index) {
+    const value = Math.max(0, Math.min(5, Number(index) || 0));
+    if (world3dRenderer) world3dRenderer.setVariant(value);
+    try { localStorage.setItem(BANDANA_PREF_KEY, String(value)); } catch (error) { /* almacenamiento bloqueado */ }
+    if (window.MultiplayerClient && typeof window.MultiplayerClient.sendAvatarStyle === 'function') {
+      window.MultiplayerClient.sendAvatarStyle(value);
+    }
+    document.querySelectorAll('.bandana-grid button, .lobby3d-swatches button').forEach((button) => {
+      button.classList.toggle('selected', Number(button.dataset.bandana) === value);
+    });
+    renderLobbyPlayers();
+  };
+
+  window.App.openBandanaPicker = function() {
+    if (!dom.modalOverlay || !dom.modalBody) return;
+    const colors = (window.World3D && window.World3D.BANDANA_COLORS) || ['#76bd45', '#e66d61', '#5da7e8', '#a879d8', '#e6ad45', '#49bda7'];
+    const selected = storedBandana();
+    dom.modalBody.innerHTML = `
+      <div style="text-align:center; padding:6px 8px 14px;">
+        <div style="width:58px;height:58px;margin:0 auto 12px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(145deg,#167d78,#0e4e51);border:1px solid rgba(233,184,94,.55);color:#ffe7a3;font-size:1.5rem;">
+          <i class="fas fa-palette"></i>
+        </div>
+        <h3 style="margin:0 0 6px;">Elige tu bandana</h3>
+        <p style="margin:0 0 14px;color:#666;font-size:0.86rem;">El color se aplica al instante en el lobby 3D y se guarda en este navegador.</p>
+        <div class="bandana-grid">
+          ${colors.map((color, index) => `
+            <button type="button" data-bandana="${index}" class="${index === selected ? 'selected' : ''}" style="--swatch:${color};" onclick="App.setBandana(${index})" aria-label="Bandana ${index + 1}">
+              ${index === selected ? '<i class="fas fa-check"></i>' : ''}
+            </button>`).join('')}
+        </div>
+        <button class="btn btn-primary" style="margin-top:16px;" onclick="App.closeModal()"><i class="fas fa-check"></i> Listo</button>
+      </div>`;
+    dom.modalOverlay.style.display = 'flex';
+    dom.modalOverlay.classList.add('active');
+    dom.modalOverlay.classList.add('open');
+  };
 
   function getZoneCategory(id) {
     if (id.startsWith('reference_')) return 'Ubicaciones Esmeralda';
@@ -723,6 +1118,7 @@ window.PVP_BUILD_VERSION = 23;
     const container = document.getElementById('worldCanvasStage');
     if (!container || !window.TileMapRenderer) return;
 
+    destroyWorld3D();
     if (worldTileRenderer && typeof worldTileRenderer.destroy === 'function') {
       worldTileRenderer.destroy();
       worldTileRenderer = null;
@@ -788,6 +1184,7 @@ window.PVP_BUILD_VERSION = 23;
         playerPos.x = pos.x;
         playerPos.y = pos.y;
         playerPos.dir = dir;
+        scheduleSave();
         if (window.MultiplayerClient) {
           window.MultiplayerClient.sendPosition(pos.x, pos.y, dir, activeMapKey);
         }
@@ -822,6 +1219,28 @@ window.PVP_BUILD_VERSION = 23;
 
     window.worldTileRenderer = worldTileRenderer;
 
+    // Capa 3D: el motor GBA sigue controlando movimiento, colisiones y combate.
+    initWorld3D(container, mapData, {
+      mapId: activeMapKey,
+      name: name,
+      width: width,
+      height: height,
+      image: image,
+      obstacles: obstacles,
+      npcs: npcs,
+      items: mapItems,
+      exits: exits,
+      signs: signs,
+      seats: fullMap.seats || localMap.seats || [],
+      flowerPatches: flowerPatches,
+      isDark: !!(fullMap.isDark || localMap.isDark)
+    });
+    if (inMapBattle) initBattle3D();
+    renderLobbyPlayers();
+    if (window.MultiplayerClient && typeof window.MultiplayerClient.sendAvatarStyle === 'function') {
+      window.MultiplayerClient.sendAvatarStyle(storedBandana());
+    }
+
     if (activeDialog) {
       worldTileRenderer.avatarState = 'INTERACTING';
     } else if (inMapBattle) {
@@ -833,6 +1252,7 @@ window.PVP_BUILD_VERSION = 23;
         if (worldTileRenderer) {
           worldTileRenderer.otherPlayers = window.MultiplayerClient.otherPlayers;
         }
+        renderLobbyPlayers();
       });
     }
   }
@@ -840,6 +1260,9 @@ window.PVP_BUILD_VERSION = 23;
   function centerCameraOnPlayer() {
     if (worldTileRenderer) {
       worldTileRenderer.centerOnPlayer();
+    }
+    if (world3dRenderer) {
+      world3dRenderer.focusCamera();
     }
   }
 
@@ -935,12 +1358,30 @@ window.PVP_BUILD_VERSION = 23;
                 ${categoryOptGroups}
               </select>
               ${quickBadges}
+              <button id="toggle3dBtn" class="btn btn-sm btn-outline" onclick="App.toggleWorld3D()" title="Activar el mapa 3D" style="padding:5px 10px; border-radius:8px; border:2px solid #e9b85e; background:#0d2818; color:#ffe8b0; font-weight:700; font-size:0.78rem;">
+                <i class="fas fa-cube"></i> 3D
+              </button>
             </div>
           </div>
 
           <!-- Viewport del Juego con Motor Canvas 2D Unificado -->
           <div class="hoenn-viewport" id="hoennViewport" style="position:relative; width:100%; height:calc(100vh - 220px); min-height:430px; max-height:600px; overflow:hidden;">
             <div id="worldCanvasStage" style="width:100%; height:100%; position:relative;"></div>
+            <div class="world3d-hud" id="world3dHud">
+              <span class="w3d-pill"><span class="w3d-live"></span><i class="fas fa-cube"></i> MUNDO 3D</span>
+              <span class="w3d-pill"><i class="fas fa-users"></i> <b id="world3dOnline">—</b></span>
+              <span class="w3d-pill w3d-hint"><i class="fas fa-mouse"></i> Arrastra para girar · Rueda = zoom · R = cámara</span>
+              <span class="w3d-pill w3d-hint" id="world3dFps">—</span>
+            </div>
+            ${activeMapKey === 'grand_hotel_lobby' ? `
+            <div class="lobby-social-panel" id="lobbySocialPanel">
+              <div class="lobby-social-head">
+                <span><i class="fas fa-users"></i> Entrenadores <b id="lobbyOnlineCount">1</b></span>
+                <span><span class="w3d-live"></span> En línea</span>
+              </div>
+              <div class="lobby-players" id="lobbyPlayersList"></div>
+              <div class="lobby-chat-log" id="lobbyChatLog"></div>
+            </div>` : ''}
             ${renderTeamPanelHtml('pvp-team-left', 'MI EQUIPO', myTeamList(), (trainerState && trainerState.starter && trainerState.starter.name) || null, 'No tienes Pokémon en tu equipo.')}
             ${renderTeamPanelHtml('pvp-team-right', 'EQUIPO RIVAL', pvpOpponentTeam, null, 'Sin rival aún. ¡Retalo en la Sala Unión!')}
             ${dialogHtml}
@@ -960,6 +1401,21 @@ window.PVP_BUILD_VERSION = 23;
                   <button class="btn btn-sm btn-outline chat-action-btn" onclick="LobbyManager.openHMMenu()" title="Máquinas Ocultas (Guías Nintendo)"><i class="fas fa-compact-disc" style="color:#2ecc71;"></i> MO</button>
                   <button class="btn btn-sm btn-outline chat-action-btn" onclick="LobbyManager.sitDown()" title="Sentarse / Levantarse"><i class="fas fa-chair" style="color:#f39c12;"></i> Sentarse</button>
                   <button class="btn btn-sm btn-outline chat-action-btn" onclick="App.switchTown('grand_hotel_lobby')" title="Ir a Sala Unión MMO"><i class="fas fa-hotel" style="color:#3498db;"></i> Sala Unión</button>
+                  ${activeMapKey === 'grand_hotel_lobby' ? `
+                  <div class="lobby3d-actions" title="Acciones del lobby 3D">
+                    <div class="lobby3d-emotes" aria-label="Emotes rápidos">
+                      <button type="button" onclick="App.lobbyEmote('👋')" title="Saludar">👋</button>
+                      <button type="button" onclick="App.lobbyEmote('❤️')" title="Corazón">❤️</button>
+                      <button type="button" onclick="App.lobbyEmote('😄')" title="Risa">😄</button>
+                      <button type="button" onclick="App.lobbyEmote('⚡')" title="Energía">⚡</button>
+                    </div>
+                    <div class="lobby3d-swatches" aria-label="Color de bandana">
+                      ${['#76bd45','#e66d61','#5da7e8','#a879d8','#e6ad45','#49bda7'].map((color, index) =>
+                        `<button type="button" data-bandana="${index}" class="${storedBandana() === index ? 'selected' : ''}" style="--swatch:${color};" onclick="App.setBandana(${index})" title="Bandana ${index + 1}"></button>`
+                      ).join('')}
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline chat-action-btn" onclick="App.openBandanaPicker()" title="Abrir terminal de estilo"><i class="fas fa-palette" style="color:#e6ad45;"></i> Estilo</button>
+                  </div>` : ''}
                 </div>
                 <div id="playerInteractActions" style="display:none; gap:6px; align-items:center;">
                   <span id="piTargetName" style="color:#fff; font-weight:bold; font-size:0.8rem; margin-right:8px; background:rgba(0,0,0,0.5); padding:4px 8px; border-radius:6px; border:1px solid rgba(255,255,255,0.2);">Entrenador</span>
@@ -1192,6 +1648,7 @@ window.PVP_BUILD_VERSION = 23;
       <div class="hoenn-battle-overlay">
         ${b.isPvp ? `<div class="em-pvp-banner">⚔️ PvP vs <strong>${Validate.escHtml(b.opponentName || 'Rival')}</strong> &nbsp;·&nbsp; Recompensa: <strong>${b.rewardCoins || 150} 💰</strong></div>` : ''}
         <div class="battle-arena-scene">
+          <div class="battle3d-layer" id="battle3dLayer" aria-hidden="true"></div>
           <!-- Oponente -->
           <div class="battle-box-opponent">
             ${b.trainerName ? `<div class="em-enemy-trainer-tag">${Validate.escHtml(b.trainerName)} · ${(b.opponentTeam && b.opponentTeam.length ? b.opponentTeam.length + 1 : 1)} Pokémon</div>` : ''}
@@ -1316,8 +1773,8 @@ window.PVP_BUILD_VERSION = 23;
       inMapBattle = null;
       if (!trainerState.visitedTowns.includes(townId) && !interiorMaps[townId]) {
         trainerState.visitedTowns.push(townId);
-        saveTrainerProgress();
       }
+      saveTrainerProgress();
       if (window.MultiplayerClient && window.MultiplayerClient.socket && window.MultiplayerClient.socket.readyState === 1) {
         window.MultiplayerClient.sendPosition(playerPos.x, playerPos.y, playerPos.dir, activeMapKey);
       }
@@ -1758,26 +2215,46 @@ window.PVP_BUILD_VERSION = 23;
       if (!inMapBattle || !inMapBattle.isPvp) return;
 
       if (res.my_pokemon) {
-        trainerState.starter = res.my_pokemon;
-        inMapBattle.playerPokemon = res.my_pokemon;
-        inMapBattle.playerHp = res.my_pokemon.current_hp != null ? res.my_pokemon.current_hp : res.my_pokemon.hp;
+        // Solo sincroniza los PS: nunca reemplaza el Pokémon local (perdería XP,
+        // movimientos y evolución acumulados).
+        const local = trainerState.starter;
+        const hp = Number(res.my_pokemon.current_hp != null ? res.my_pokemon.current_hp : res.my_pokemon.hp);
+        if (local && Number.isFinite(hp)) {
+          const maxHp = Number(local.maxHp || local.hp) || hp;
+          local.currentHp = Math.max(0, Math.min(maxHp, hp));
+          inMapBattle.playerPokemon = {
+            ...(inMapBattle.playerPokemon || {}),
+            name: inMapBattle.playerPokemon?.name || local.name,
+            image: inMapBattle.playerPokemon?.image || local.image,
+            level: local.level,
+            hp: maxHp,
+            maxHp,
+            currentHp: local.currentHp,
+            moves: inMapBattle.playerPokemon?.moves || local.moves || []
+          };
+          inMapBattle.playerHp = local.currentHp;
+        } else {
+          inMapBattle.playerPokemon = res.my_pokemon;
+          inMapBattle.playerHp = Number.isFinite(hp) ? hp : inMapBattle.playerHp;
+        }
       } else {
         inMapBattle.playerHp = res.my_hp != null ? res.my_hp : inMapBattle.playerHp;
-        if (trainerState.starter) trainerState.starter.currentHp = inMapBattle.playerHp;
+        if (trainerState.starter) {
+          const maxHp = Number(trainerState.starter.maxHp || trainerState.starter.hp) || inMapBattle.playerHp;
+          trainerState.starter.currentHp = Math.max(0, Math.min(maxHp, Number(inMapBattle.playerHp)));
+        }
       }
       
       if (res.opponent_pokemon) {
-        inMapBattle.opponent = res.opponent_pokemon;
+        inMapBattle.opponent = { ...(inMapBattle.opponent || {}), ...res.opponent_pokemon };
         inMapBattle.opponentHp = res.opponent_pokemon.current_hp != null ? res.opponent_pokemon.current_hp : res.opponent_pokemon.hp;
       } else {
         inMapBattle.opponentHp = res.opponent_hp != null ? res.opponent_hp : inMapBattle.opponentHp;
       }
       
       if (res.my_team) {
-         // Sync local collection with the server's team state
-         trainerState.collection = res.my_team.map(p => {
-             return { ...p, currentHp: p.current_hp != null ? p.current_hp : p.hp };
-         });
+        // Solo PS del equipo; conserva los objetos locales y su progresión.
+        syncPartyHpFromServer(res.my_team);
       }
       saveTrainerProgress();
 
@@ -1795,6 +2272,7 @@ window.PVP_BUILD_VERSION = 23;
               trainerState.inventory.coins = (trainerState.inventory.coins || 0) + reward;
               saveTrainerProgress();
               inMapBattle.rewardPaid = true;
+              grantPvpXp();
               inMapBattle.logs = [`¡VICTORIA! +${reward} monedas ♥`, ...inMapBattle.logs.slice(0, 4)];
               App.showNotification(`¡Has ganado y recibes ${reward} monedas!`, 'success');
             } else {
@@ -1843,6 +2321,7 @@ window.PVP_BUILD_VERSION = 23;
             saveTrainerProgress();
             App.showNotification(`¡Ganaste el combate PvP y recibes ${reward} monedas!`, 'success');
           }
+          grantPvpXp();
         } else {
           App.showNotification(`El combate PvP terminó. Ganó ${data.winner_name || 'tu rival'}.`, 'info');
         }
@@ -2063,6 +2542,41 @@ window.PVP_BUILD_VERSION = 23;
     inMapBattle.logs.unshift('¡Te has rendido! Esperando confirmación...');
     renderView('mundo');
   };
+  // Rango de niveles salvajes por zona, ajustado al equipo para no bloquear la exploración.
+  function zoneWildLevelRange(mapId, activeMap) {
+    const party = (trainerState.collection || []).map(m => Number(m.level) || 5);
+    const avg = party.length ? party.reduce((a, b) => a + b, 0) / party.length : 5;
+    let min = 3;
+    let max = 6;
+    const routeMatch = /^route_(\d+)/.exec(String(mapId || ''));
+    const routeNumber = routeMatch ? Number(routeMatch[1]) : 0;
+
+    if (routeNumber >= 118) { min = 26; max = 32; }
+    else if (routeNumber >= 110) { min = 20; max = 26; }
+    else if (routeNumber >= 105) { min = 14; max = 20; }
+    else if (routeNumber >= 103) { min = 7; max = 11; }
+    else if (routeNumber > 0) { min = 3; max = 6; }
+    else if (String(mapId || '').includes('cave') || String(mapId || '').includes('tunnel')) { min = 8; max = 13; }
+    else if (String(mapId || '').match(/city|town/)) { min = 4; max = 8; }
+    else { min = 5; max = 9; }
+
+    // La zona nunca se aleja demasiado de tu equipo (mundo abierto, no un muro).
+    min = Math.max(2, Math.min(min, Math.round(avg) + 2));
+    max = Math.max(min + 1, Math.min(max, Math.round(avg) + 4));
+
+    const badges = (trainerState.medals || []).length;
+    if (badges > 0) {
+      const bonus = Math.floor(badges / 2);
+      min += bonus;
+      max += bonus;
+    }
+    return { min, max };
+  }
+
+  function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
   App.triggerWildEncounter = function() {
     if (inMapBattle) return;
     // Encuentros salvajes POR RUTA: usa la lista de Pokémon de la ruta actual
@@ -2075,31 +2589,42 @@ window.PVP_BUILD_VERSION = 23;
       ? findCatalogMon(routeList[Math.floor(Math.random() * routeList.length)]) || null
       : null;
     if (!randomMon) randomMon = WILD_POKEMON[Math.floor(Math.random() * WILD_POKEMON.length)];
-    const baseHp = randomMon.hp || (55 + ((randomMon.dexId || randomMon.id || 1) % 45));
-    const baseAtk = randomMon.attack || (16 + ((randomMon.dexId || randomMon.id || 1) % 20));
-    const wildLevel = Math.max(3, trainerState.level + Math.floor(Math.random() * 3) - 1);
-    const wildHp = Math.max(30, Math.round(baseHp * (1 + (wildLevel - 5) * 0.10)));
-    const opponent = {
-      name: randomMon.name,
-      type: randomMon.types ? randomMon.types.slice().join('/') : (randomMon.type || 'Normal'),
-      types: randomMon.types && randomMon.types.length ? randomMon.types.slice() : (randomMon.type ? [randomMon.type] : []),
-      dexId: randomMon.dexId || randomMon.id,
-      hp: wildHp,
-      maxHp: wildHp,
-      attack: Math.max(12, Math.round(baseAtk * (1 + (wildLevel - 5) * 0.10))),
-      defense: randomMon.defense || 22,
-      sp_attack: randomMon.sp_attack || baseAtk,
-      sp_defense: randomMon.sp_defense || 22,
-      speed: randomMon.speed || 50,
-      image: randomMon.image || getPokemonSpriteUrl(randomMon.name, randomMon.dexId || randomMon.id),
-      level: wildLevel,
-      isWild: true
-    };
+
+    const range = zoneWildLevelRange(activeMapKey, activeMap);
+    const wildLevel = randomInt(range.min, range.max);
+
+    let opponent;
+    if (window.PokemonProgress && randomMon) {
+      opponent = window.PokemonProgress.createMon(randomMon, wildLevel, { isWild: true });
+    } else {
+      const baseHp = randomMon.hp || (55 + ((randomMon.dexId || randomMon.id || 1) % 45));
+      const baseAtk = randomMon.attack || (16 + ((randomMon.dexId || randomMon.id || 1) % 20));
+      const wildHp = Math.max(30, Math.round(baseHp * (1 + (wildLevel - 5) * 0.10)));
+      opponent = {
+        name: randomMon.name,
+        type: randomMon.types ? randomMon.types.slice().join('/') : (randomMon.type || 'Normal'),
+        types: randomMon.types && randomMon.types.length ? randomMon.types.slice() : (randomMon.type ? [randomMon.type] : []),
+        dexId: randomMon.dexId || randomMon.id,
+        hp: wildHp,
+        maxHp: wildHp,
+        attack: Math.max(12, Math.round(baseAtk * (1 + (wildLevel - 5) * 0.10))),
+        defense: randomMon.defense || 22,
+        sp_attack: randomMon.sp_attack || baseAtk,
+        sp_defense: randomMon.sp_defense || 22,
+        speed: randomMon.speed || 50,
+        image: randomMon.image || getPokemonSpriteUrl(randomMon.name, randomMon.dexId || randomMon.id),
+        level: wildLevel,
+        isWild: true
+      };
+    }
+    opponent.isWild = true;
     opponent.moves = getMovesForMon(opponent, wildLevel).map(m => ({
       ...m,
       currentPp: m.pp,
       maxPp: m.maxPp
     }));
+
+    const wildHp = opponent.maxHp || opponent.hp;
     inMapBattle = {
       menuState: 'MAIN',
       trainerId: null,
@@ -2109,8 +2634,7 @@ window.PVP_BUILD_VERSION = 23;
       opponentHp: wildHp,
       mustSwitch: false,
       playerHp: trainerState.starter.currentHp || trainerState.starter.hp,
-      opponentHp: wildHp,
-      logs: [`¡Un ${opponent.name} salvaje apareció en ${(activeMap && activeMap.name) ? activeMap.name.split(' (')[0] : 'Hoenn'}!`]
+      logs: [`¡Un ${opponent.name} salvaje (Nv. ${wildLevel}) apareció en ${(activeMap && activeMap.name) ? activeMap.name.split(' (')[0] : 'Hoenn'}!`]
     };
     activeDialog = null;
     renderView('mundo');
@@ -2118,14 +2642,17 @@ window.PVP_BUILD_VERSION = 23;
 
   App.startInMapBattle = function(opponentName) {
     activeDialog = null;
-    let opp = null;
-    if (opponentName.includes('Slaking')) {
-      opp = { name: 'Slaking', type: 'Normal', dexId: 289, hp: 130, maxHp: 130, attack: 24, image: getPokemonSpriteUrl('Slaking', 289), level: 16, badgeName: 'Medalla Equilibrio' };
-    } else if (opponentName.includes('Geodude')) {
-      opp = { name: 'Geodude', type: 'Roca', dexId: 74, hp: 95, maxHp: 95, attack: 20, image: getPokemonSpriteUrl('Geodude', 74), level: 15, badgeName: 'Medalla Piedra' };
-    } else {
-      opp = { name: opponentName, type: 'Normal', dexId: 25, hp: 80, maxHp: 80, attack: 18, image: getPokemonSpriteUrl('Pikachu', 25), level: 12 };
+    const level = opponentName.includes('Slaking') ? 16 : (opponentName.includes('Geodude') ? 15 : 12);
+    const species = opponentName.includes('Slaking') ? 'Slaking' : (opponentName.includes('Geodude') ? 'Geodude' : 'Pikachu');
+    const base = findCatalogMon(species);
+    let opp = base && window.PokemonProgress
+      ? window.PokemonProgress.createMon(base, level, { fullHp: true })
+      : null;
+    if (!opp) {
+      opp = { name: species, type: 'Normal', dexId: 25, hp: 60, maxHp: 60, attack: 18, image: getPokemonSpriteUrl(species, 25), level };
     }
+    opp.name = opponentName.includes('Slaking') || opponentName.includes('Geodude') ? species : opponentName;
+    opp.badgeName = opponentName.includes('Slaking') ? 'Medalla Equilibrio' : (opponentName.includes('Geodude') ? 'Medalla Piedra' : null);
     opp.moves = getMovesForMon(opp, opp.level).map(m => ({
       ...m,
       currentPp: m.pp,
@@ -2141,7 +2668,6 @@ window.PVP_BUILD_VERSION = 23;
       mustSwitch: false,
       badgeName: opp.badgeName || null,
       playerHp: trainerState.starter.currentHp || trainerState.starter.hp,
-      opponentHp: opp.hp,
       logs: [`¡Líder de Gimnasio te desafía con ${opp.name}!`]
     };
     App.playPokemonCry(trainerState.starter.name);
@@ -2325,6 +2851,7 @@ window.PVP_BUILD_VERSION = 23;
 
     const oppDmg = oppDmgResult.damage;
     inMapBattle.playerHp = Math.max(0, inMapBattle.playerHp - oppDmg);
+    pendingBattleEffect = 'player';
     trainerState.starter.currentHp = inMapBattle.playerHp;
 
     const oppIsStatus = oppMove && (!oppMove.power || (oppMove.category && oppMove.category === 'estatus'));
@@ -2378,14 +2905,96 @@ window.PVP_BUILD_VERSION = 23;
     renderView('mundo');
   }
 
-  // Victoria de combate: XP, medallas, MT y subida de nivel
+  // Sincroniza solo los PS del equipo con el estado autoritativo del servidor PvP.
+  function syncPartyHpFromServer(serverTeam) {
+    if (!Array.isArray(serverTeam)) return;
+    const locals = [];
+    if (trainerState.starter) locals.push(trainerState.starter);
+    (trainerState.collection || []).forEach(mon => {
+      if (mon && mon !== trainerState.starter) locals.push(mon);
+    });
+    locals.forEach((mon, index) => {
+      const remote = serverTeam[index];
+      if (!remote) return;
+      const hp = Number(remote.current_hp != null ? remote.current_hp : remote.currentHp);
+      if (!Number.isFinite(hp)) return;
+      const maxHp = Number(mon.maxHp || mon.hp) || hp;
+      mon.currentHp = Math.max(0, Math.min(maxHp, hp));
+    });
+  }
+
+  // XP de PvP: solo la primera vez por combate.
+  function grantPvpXp() {
+    if (!inMapBattle || !inMapBattle.isPvp || inMapBattle.xpGranted) return;
+    inMapBattle.xpGranted = true;
+    const opp = inMapBattle.opponent || {};
+    const expGained = window.PokemonProgress
+      ? window.PokemonProgress.xpYield({ ...opp, level: opp.level || 5 })
+      : 40;
+    const activeMon = trainerState.starter;
+    const reports = window.PokemonProgress
+      ? window.PokemonProgress.grantPartyXp(trainerState.collection, activeMon, expGained, {
+          catalog: WILD_POKEMON,
+          evolutions: EVOLUTIONS,
+          benchShare: 0.5
+        })
+      : [];
+
+    inMapBattle.logs = [`¡Ganaste ${expGained} XP en el duelo!`, ...(inMapBattle.logs || []).slice(0, 3)];
+    reports.forEach(report => {
+      const mon = report.mon;
+      if (!mon) return;
+      report.levels.forEach(level => {
+        inMapBattle.logs.unshift(`¡${mon.name} subió al nivel ${level}!`);
+      });
+      if (report.evolution) {
+        inMapBattle.logs.unshift(`¡${report.evolution.from} evolucionó a ${report.evolution.to}!`);
+      }
+      if (report.levels.length) {
+        autoLearnMoves(mon, report.fromLevel, mon.level).forEach(moveName => {
+          inMapBattle.logs.unshift(`¡${mon.name} aprendió ${moveName}!`);
+        });
+      }
+    });
+    if (activeMon) {
+      inMapBattle.playerHp = activeMon.currentHp;
+      trainerState.level = activeMon.level;
+      trainerState.xp = activeMon.xp;
+    }
+    saveTrainerProgress();
+    return reports;
+  }
+
+  // Aprende automáticamente movimientos nuevos si hay hueco libre.
+  function autoLearnMoves(mon, fromLevel, toLevel) {
+    if (!mon || !POKEMON_MOVES_DB || !POKEMON_MOVES_DB.pokemon) return [];
+    const dexId = mon.dexId || mon.id;
+    if (dexId == null) return [];
+    const learnset = POKEMON_MOVES_DB.pokemon[String(dexId)] || [];
+    if (!Array.isArray(mon.moves)) mon.moves = [];
+    const learned = [];
+    for (const entry of learnset) {
+      const lvl = Number(entry.level) || 1;
+      if (lvl <= fromLevel || lvl > toLevel) continue;
+      const move = buildMoveFromEntry(entry);
+      if (mon.moves.some(m => String(m.id) === String(move.id))) continue;
+      if (mon.moves.length < 4) {
+        mon.moves.push({ ...move, currentPp: move.maxPp, maxPp: move.maxPp });
+        learned.push(move.name);
+      }
+    }
+    return learned;
+  }
+
+  // Victoria de combate: XP por Pokémon, medallas, MT, niveles y evolución
   function finishWinBattle() {
     const opp = inMapBattle.opponent;
     const teamCount = inMapBattle.opponentTeam && inMapBattle.opponentTeam.length ? inMapBattle.opponentTeam.length + 1 : 1;
-    const bst = (opp.hp || 50) + (opp.attack || 50) + (opp.defense || 50) +
-                (opp.sp_attack || 50) + (opp.sp_defense || 50) + (opp.speed || 50);
-    const expGained = Math.floor(bst * (opp.level || 5) / 7.0) * Math.max(1, teamCount);
-    trainerState.xp += expGained;
+    const expGained = window.PokemonProgress
+      ? window.PokemonProgress.xpYield(opp)
+      : Math.max(1, Math.floor((((opp.hp || 50) + (opp.attack || 50) + (opp.defense || 50) +
+          (opp.sp_attack || 50) + (opp.sp_defense || 50) + (opp.speed || 50)) * (opp.level || 5)) / 7));
+
     trainerState.inventory.coins += inMapBattle.opponent.isWild ? 40 : ((inMapBattle.trainerName ? 200 : 250) + teamCount * 80);
 
     const badgeName = inMapBattle.badgeName || opp.badgeName;
@@ -2403,22 +3012,46 @@ window.PVP_BUILD_VERSION = 23;
       trainerState.defeatedTrainers.push(inMapBattle.trainerId);
     }
 
-    const expNeededForNext = Math.pow(trainerState.level + 1, 3);
-    if (trainerState.xp >= expNeededForNext) {
-      const playerMon = trainerState.starter;
-      trainerState.level += 1;
-      playerMon.level = trainerState.level;
-      playerMon.hp += 2;
-      playerMon.attack += 1;
-      playerMon.defense += 1;
-      playerMon.sp_attack += 1;
-      playerMon.sp_defense += 1;
-      playerMon.speed += 1;
-      playerMon.currentHp = inMapBattle.playerHp;
-      inMapBattle.logs.unshift(`¡${playerMon.name} subió al Nivel ${trainerState.level}!`);
-      offerLevelUpMoves(playerMon, trainerState.level);
+    const activeMon = trainerState.starter;
+    const reports = window.PokemonProgress
+      ? window.PokemonProgress.grantPartyXp(trainerState.collection, activeMon, expGained, {
+          catalog: WILD_POKEMON,
+          evolutions: EVOLUTIONS,
+          benchShare: 0.5
+        })
+      : [];
+
+    inMapBattle.logs.unshift(`¡${opp.name} fue debilitado! Ganaste ${expGained} XP.`);
+    reports.forEach(report => {
+      const mon = report.mon;
+      if (!mon) return;
+      if (report.isActive) {
+        inMapBattle.logs.unshift(`¡${mon.name} ganó ${report.xp} XP!`);
+      }
+      report.levels.forEach(level => {
+        inMapBattle.logs.unshift(`¡${mon.name} subió al nivel ${level}!`);
+      });
+      if (report.evolution) {
+        inMapBattle.logs.unshift(`¡${report.evolution.from} evolucionó a ${report.evolution.to}!`);
+      }
+      if (report.levels.length) {
+        const learned = autoLearnMoves(mon, report.fromLevel, mon.level);
+        learned.forEach(moveName => {
+          inMapBattle.logs.unshift(`¡${mon.name} aprendió ${moveName}!`);
+        });
+      }
+    });
+
+    // El Pokémon activo puede querer aprender un movimiento con el set completo.
+    if (activeMon && reports.some(r => r.isActive && r.levels.length)) {
+      offerLevelUpMoves(activeMon, activeMon.level);
     }
-    inMapBattle.logs.unshift(`¡${inMapBattle.opponent.name} rival ha sido debilitado! Ganaste ${expGained} XP.`);
+
+    if (activeMon) {
+      inMapBattle.playerHp = activeMon.currentHp;
+      trainerState.level = activeMon.level;
+      trainerState.xp = activeMon.xp;
+    }
     saveTrainerProgress();
 
     if (inMapBattle.onComplete) {
@@ -2492,6 +3125,7 @@ window.PVP_BUILD_VERSION = 23;
     inMapBattle.opponentHp = Math.max(0, inMapBattle.opponentHp - damage);
 
     const isStatusMove = !move.power || (move.category && move.category === 'estatus');
+    if (!isStatusMove) pendingBattleEffect = 'opponent';
     let pLog = isStatusMove
       ? `¡${playerMon.name} usó ${move.name}! (movimiento de estado)`
       : `¡${playerMon.name} usó ${move.name}! Causó ${damage} de daño.`;
@@ -2618,6 +3252,7 @@ window.PVP_BUILD_VERSION = 23;
       return;
     }
     const bName = ballName || 'Pokeball';
+    pendingBattleEffect = 'throw';
     const DB = (typeof ITEMS_DATABASE !== 'undefined') ? ITEMS_DATABASE : {};
     const ballData = DB[bName] || {};
     const qty = (trainerState.inventory.items || {})[bName] || 0;
@@ -2856,16 +3491,22 @@ window.PVP_BUILD_VERSION = 23;
     `;
   }
 
+  function isPokemonOwned(pokemon) {
+    const dex = Number(pokemon.dexId || pokemon.id);
+    return (trainerState.collection || []).some(mon => mon && Number(mon.dexId || mon.id) === dex);
+  }
+
   function dexCard(pokemon) {
+    const owned = isPokemonOwned(pokemon);
     return `
-      <div class="dex-pokemon" style="display:flex; flex-direction:column; align-items:center; padding:12px; border-radius:14px; background:#fff; box-shadow:0 3px 12px rgba(0,0,0,0.06); border:2px solid #e1e8ed;">
+      <div class="dex-pokemon" style="display:flex; flex-direction:column; align-items:center; padding:12px; border-radius:14px; background:#fff; box-shadow:0 3px 12px rgba(0,0,0,0.06); border:2px solid ${owned ? '#2ecc71' : '#e1e8ed'};">
         <span style="font-size:0.7rem; color:#888; align-self:flex-start; font-weight:700;">#${String(pokemon.id).padStart(3, '0')}</span>
         <img src="${pokemon.image}" alt="${pokemon.name}" style="height:76px; width:76px; object-fit:contain; image-rendering:pixelated; margin:8px 0;">
         <strong style="font-size:0.92rem; color:#1a2244; margin-bottom:2px;">${pokemon.name}</strong>
         <span class="badge em-type-${(pokemon.type || 'Normal').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}" style="font-size:0.68rem; margin:2px 0 10px; color:#fff;">${pokemon.type.toUpperCase()}</span>
         <div style="display:flex; gap:6px; width:100%;">
           <button class="btn btn-sm btn-outline" style="flex:1; font-size:0.72rem;" onclick="App.openPokedexDetail(${pokemon.id})">Ficha</button>
-          <button class="btn btn-sm btn-primary" style="flex:1; font-size:0.72rem;" onclick="App.selectPokemonAsActive(${pokemon.id})">Elegir</button>
+          <button class="btn btn-sm ${owned ? 'btn-primary' : 'btn-outline'}" style="flex:1; font-size:0.72rem;" onclick="App.selectPokemonAsActive(${pokemon.id})">${owned ? 'Usar' : 'No capturado'}</button>
         </div>
       </div>`;
   }
@@ -2954,14 +3595,22 @@ window.PVP_BUILD_VERSION = 23;
   };
 
   App.selectPokemonAsActive = function(id) {
-    const mon = WILD_POKEMON.find(p => p.id === id);
+    const mon = WILD_POKEMON.find(p => p.id === id || p.dexId === id);
     if (!mon) return;
-    trainerState.starter = { ...mon, currentHp: mon.hp, level: trainerState.level };
-    if (!trainerState.collection.some(c => c.name === mon.name)) {
-      trainerState.collection.push(trainerState.starter);
+
+    // Solo puedes usar Pokémon que ya forman parte de tu equipo/colección.
+    const targetDex = Number(mon.dexId || mon.id);
+    const existing = (trainerState.collection || []).find(c =>
+      c && Number(c.dexId || c.id) === targetDex
+    );
+    if (!existing) {
+      alert(`Aún no tienes a ${mon.name}. Encuéntralo explorando Hoenn y captúralo en combate.`);
+      return;
     }
+
+    trainerState.starter = existing;
     saveTrainerProgress();
-    alert(`¡${mon.name} es ahora tu Pokémon acompañante activo!`);
+    alert(`¡${trainerState.starter.name} (Nv. ${trainerState.starter.level || 1}) es ahora tu Pokémon acompañante activo!`);
     renderView('mundo');
   };
 
@@ -3078,6 +3727,7 @@ window.PVP_BUILD_VERSION = 23;
 
     modalOverlay.style.display = 'flex';
     modalOverlay.classList.add('active');
+    modalOverlay.classList.add('open');
 
     // Enriquecimiento asíncrono vía PokeAPI
     if (!enrichedData && id <= 386) {
@@ -3142,6 +3792,7 @@ window.PVP_BUILD_VERSION = 23;
     if (dom.modalOverlay) {
       dom.modalOverlay.style.display = 'none';
       dom.modalOverlay.classList.remove('active');
+      dom.modalOverlay.classList.remove('open');
     }
   };
 
@@ -3323,10 +3974,23 @@ window.PVP_BUILD_VERSION = 23;
      12. ESTADÍSTICAS Y AJUSTES
      ============================================================ */
   function viewDashboard() {
+    const active = trainerState.starter || {};
+    const team = Array.isArray(trainerState.collection) ? trainerState.collection : [];
+    const level = active.level || 5;
+    const xp = Number(active.xp) || 0;
+    const nextXp = window.PokemonProgress ? window.PokemonProgress.xpForLevel(level + 1) : Math.pow(level + 1, 3);
+    const currentXp = window.PokemonProgress ? window.PokemonProgress.xpForLevel(level) : Math.pow(level, 3);
+    const progress = level >= 100 ? 100 : Math.max(0, Math.min(100, Math.round(((xp - currentXp) / Math.max(1, nextXp - currentXp)) * 100)));
+    const teamRows = team.map(mon => `
+      <li style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #eee;">
+        <span>${mon === active ? '⭐ ' : ''}<strong>${Validate.escHtml(mon.name || 'Pokémon')}</strong></span>
+        <span>Nv. ${mon.level || 1} · PS ${mon.currentHp ?? mon.maxHp}/${mon.maxHp ?? mon.hp}</span>
+      </li>`).join('');
+
     return `
       <div class="stats-grid">
-        <div class="stat-card"><i class="fas fa-star" style="color:#f1c40f;"></i><div class="stat-info"><h4>Nivel de Entrenador</h4><span>${trainerState.level}</span></div></div>
-        <div class="stat-card"><i class="fas fa-paw" style="color:#2ecc71;"></i><div class="stat-info"><h4>Criaturas en Equipo</h4><span>${trainerState.collection.length + 1}</span></div></div>
+        <div class="stat-card"><i class="fas fa-star" style="color:#f1c40f;"></i><div class="stat-info"><h4>Nivel del Compañero</h4><span>${level}</span></div></div>
+        <div class="stat-card"><i class="fas fa-paw" style="color:#2ecc71;"></i><div class="stat-info"><h4>Criaturas en Equipo</h4><span>${team.length}</span></div></div>
         <div class="stat-card"><i class="fas fa-medal" style="color:#e67e22;"></i><div class="stat-info"><h4>Medallas Conquistadas</h4><span>${trainerState.medals.length}</span></div></div>
         <div class="stat-card"><i class="fas fa-map" style="color:#3498db;"></i><div class="stat-info"><h4>Ciudades Descubiertas</h4><span>${trainerState.visitedTowns.length}</span></div></div>
       </div>
@@ -3334,7 +3998,11 @@ window.PVP_BUILD_VERSION = 23;
         <div class="card-header"><h3>🎮 Perfil de Aventura</h3></div>
         <p>Entrenador activo: <strong>${Validate.escHtml(currentUser?.username || 'Brendan')}</strong>.</p>
         <p>Pueblo de origen: <strong>Villa Raíz (Littleroot Town)</strong>.</p>
-        <p>Compañero activo: <strong>${trainerState.starter.name} (Nv. ${trainerState.level})</strong>.</p>
+        <p>Compañero activo: <strong>${Validate.escHtml(active.name || '—')} (Nv. ${level})</strong> · XP ${xp} / ${nextXp}.</p>
+        <div style="height:10px; background:#e5e7eb; border-radius:6px; overflow:hidden; margin:8px 0 18px;">
+          <div style="height:100%; width:${progress}%; background:linear-gradient(90deg,#27ae60,#2ecc71);"></div>
+        </div>
+        ${teamRows ? `<h4 style="margin-bottom:6px;">Equipo</h4><ul style="list-style:none; padding:0; margin:0;">${teamRows}</ul>` : ''}
         <div style="margin-top:16px;">
           <button class="btn btn-primary" onclick="renderView('mundo')"><i class="fas fa-gamepad"></i> Continuar Exploración</button>
         </div>
@@ -3355,13 +4023,24 @@ window.PVP_BUILD_VERSION = 23;
   }
 
   App.resetSaveData = function() {
-    if (confirm('¿Deseas reiniciar tu progreso en Hoenn? Volverás a aparecer en Villa Raíz.')) {
+    if (!confirm('¿Deseas reiniciar tu progreso en Hoenn? Volverás a aparecer en Villa Raíz con un Pokémon inicial nuevo.')) return;
+
+    // Guarda pendiente fuera: si el temporizador se dispara después, reescribiría la partida borrada.
+    clearTimeout(saveTimer);
+    try {
+      localStorage.removeItem(trainerStorageKey());
       sessionStorage.removeItem(trainerStorageKey());
-      loadTrainerState();
-      activeMapKey = 'littleroot_town';
-      playerPos = { x: 230, y: 240, dir: 'down', moving: false };
-      renderView('mundo');
-    }
+      sessionStorage.removeItem('hoennTrainer_guest');
+    } catch { /* almacenamiento bloqueado */ }
+
+    trainerState = createBaseTrainerState();
+    window.trainerState = trainerState;
+    activeMapKey = 'littleroot_town';
+    playerPos = { x: 230, y: 240, dir: 'down', moving: false };
+
+    loadTrainerState();
+    saveTrainerProgress();
+    renderView('mundo');
   };
 
   /* ============================================================
@@ -3430,6 +4109,7 @@ window.PVP_BUILD_VERSION = 23;
     };
 
     const renderer = views[currentView] || viewWorld;
+    destroyWorld3D();
     dom.pageContent.innerHTML = `<div class="fade-in">${renderer()}</div>`;
 
     if (currentView === 'mundo' || currentView === 'lobby') {
@@ -3503,6 +4183,9 @@ window.PVP_BUILD_VERSION = 23;
   }
 
   function doLogout() {
+    // Guarda la partida antes de perder currentUser (la clave de guardado depende del usuario).
+    clearTimeout(saveTimer);
+    saveTrainerProgress();
     currentUser = null;
     window.currentUser = null;
     sessionStorage.removeItem('hoennUser');
@@ -3513,6 +4196,15 @@ window.PVP_BUILD_VERSION = 23;
       worldTileRenderer.destroy();
       worldTileRenderer = null;
     }
+
+    // Limpia el estado en memoria para que no se muestre la partida anterior.
+    trainerState = createBaseTrainerState();
+    window.trainerState = trainerState;
+    activeMapKey = 'littleroot_town';
+    playerPos = { x: 230, y: 240, dir: 'down', moving: false };
+    inMapBattle = null;
+    activeDialog = null;
+
     showLogin();
   }
 
@@ -3571,9 +4263,12 @@ window.PVP_BUILD_VERSION = 23;
     // Propagar token al GameClient
     if (window.GameClient) window.GameClient.token = token;
 
-    // Estado del mapa inicial
-    activeMapKey = 'littleroot_town';
-    playerPos    = { x: 230, y: 240, dir: 'down', moving: false };
+    // Elección de inicial hecha en el registro (ids 1-3 del backend).
+    const chosenStarterId = Number(session.player && session.player.team && session.player.team[0] && session.player.team[0].id);
+    if ([1, 2, 3].includes(chosenStarterId)) window.__chosenStarterId = chosenStarterId;
+
+    // Restaura la partida guardada (mapa, posición, equipo y niveles).
+    // loadTrainerState solo sobrescribe mapa/posición si hay datos válidos guardados.
     loadTrainerState();
 
     dom.sidebar.style.display = '';

@@ -14,6 +14,7 @@ python -m PyInstaller --noconfirm --onefile --name "JuegoPokemon" ^
   --add-data "assets;assets" ^
   --add-data "pokemon_kanto_background.jpg;." ^
   --add-data "modules;modules" ^
+  --add-data "vendor;vendor" ^
   --add-data "data;data" ^
   --add-data "monster_engine;monster_engine" ^
   --hidden-import uvicorn.logging ^

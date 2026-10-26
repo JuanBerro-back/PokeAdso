@@ -191,6 +191,7 @@
       this.running = true;
       this.animFrameId = null;
       this.lastTime = performance.now();
+      this.renderSuppressed = false;
 
       this.init();
     }
@@ -629,7 +630,9 @@
       if (this.otherPlayers) {
         for (const [id, p] of this.otherPlayers.entries()) {
           const pMap = p.mapId || p.map_id;
-          if (pMap && pMap !== this.mapId) continue;
+          // Sin mapa conocido solo se muestran en la Sala Unión (no en todo Hoenn).
+          const sameMap = pMap ? (pMap === this.mapId) : (this.mapId === 'grand_hotel_lobby');
+          if (!sameMap) continue;
           if (window.currentUser && p.id === window.currentUser.username.toLowerCase()) continue;
           
           if (Math.abs(frontX - p.x) < 16 && Math.abs(frontY - p.y) < 16) {
@@ -675,6 +678,7 @@
        ============================================================ */
     render() {
       if (!this.ctx || !this.canvas) return;
+      if (this.renderSuppressed) return;
 
       const dpr = window.devicePixelRatio || 1;
       const screenW = this.canvas.width / dpr;
@@ -886,32 +890,131 @@
           }
         }
       } else {
-        // Rutas terrestres y ciudades: Hierba viva Esmeralda
-        this.ctx.fillStyle = '#2d6d3b';
-        this.ctx.fillRect(0, 0, w, h);
+        // Rutas terrestres y ciudades: pradera GBA con árboles, caminos y detalles.
+        const isCity = /city|town/.test(mapId);
+        let seed = 2166136261;
+        for (let i = 0; i < mapId.length; i++) {
+          seed ^= mapId.charCodeAt(i);
+          seed = Math.imul(seed, 16777619) >>> 0;
+        }
+        const rnd = () => {
+          seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+          return seed / 4294967296;
+        };
 
-        this.ctx.fillStyle = '#286335';
-        for (let y = 0; y < h; y += 32) {
-          for (let x = 0; x < w; x += 32) {
-            if ((Math.floor(x / 32) + Math.floor(y / 32)) % 2 === 0) {
-              this.ctx.fillRect(x, y, 32, 32);
+        // Base de hierba con variación de tono
+        this.ctx.fillStyle = isCity ? '#68ac63' : '#57a05b';
+        this.ctx.fillRect(0, 0, w, h);
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.035)';
+        for (let y = 0; y < h; y += 16) {
+          for (let x = 0; x < w; x += 16) {
+            if ((Math.floor(x / 16) + Math.floor(y / 16)) % 2 === 0) {
+              this.ctx.fillRect(x, y, 16, 16);
             }
           }
         }
 
-        // Sendero central conectando los caminos
-        this.ctx.fillStyle = '#d8b97c';
-        const midY = Math.floor(h / 32) * 16;
-        const midX = Math.floor(w / 32) * 16;
-        this.ctx.fillRect(0, midY - 16, w, 32);
-        this.ctx.fillRect(midX - 16, 0, 32, h);
+        // Matas de hierba sueltas
+        const tufts = Math.min(160, Math.floor((w * h) / 6500) + 30);
+        for (let i = 0; i < tufts; i++) {
+          const tx = 20 + rnd() * (w - 40);
+          const ty = 20 + rnd() * (h - 40);
+          this.ctx.strokeStyle = 'rgba(32, 92, 44, 0.45)';
+          this.ctx.lineWidth = 1;
+          this.ctx.beginPath();
+          this.ctx.moveTo(tx, ty + 3);
+          this.ctx.lineTo(tx - 2, ty - 2);
+          this.ctx.moveTo(tx, ty + 3);
+          this.ctx.lineTo(tx + 2, ty - 3);
+          this.ctx.moveTo(tx, ty + 3);
+          this.ctx.lineTo(tx, ty - 4);
+          this.ctx.stroke();
+        }
 
-        // Bordes de árboles
-        this.ctx.fillStyle = '#183c21';
-        this.ctx.fillRect(0, 0, w, 16);
-        this.ctx.fillRect(0, h - 16, w, 16);
-        this.ctx.fillRect(0, 0, 16, h);
-        this.ctx.fillRect(w - 16, 0, 16, h);
+        // Caminos de tierra (cruz central) con bordes irregulares
+        const midY = Math.round(h / 2);
+        const midX = Math.round(w / 2);
+        const pathW = 48;
+        this.ctx.fillStyle = '#d9c08d';
+        this.ctx.fillRect(0, midY - pathW / 2, w, pathW);
+        this.ctx.fillRect(midX - pathW / 2, 0, pathW, h);
+        this.ctx.fillStyle = '#c7ab77';
+        this.ctx.fillRect(0, midY - pathW / 2, w, 3);
+        this.ctx.fillRect(0, midY + pathW / 2 - 3, w, 3);
+        this.ctx.fillRect(midX - pathW / 2, 0, 3, h);
+        this.ctx.fillRect(midX + pathW / 2 - 3, 0, 3, h);
+        // Piedrecillas del camino
+        this.ctx.fillStyle = 'rgba(120, 96, 56, 0.35)';
+        for (let i = 0; i < 70; i++) {
+          const onH = rnd() > 0.5;
+          const px = onH ? rnd() * w : midX - 18 + rnd() * 36;
+          const py = onH ? midY - 18 + rnd() * 36 : rnd() * h;
+          this.ctx.fillRect(px, py, 2 + rnd() * 3, 2 + rnd() * 2);
+        }
+
+        const exits = Array.isArray(this.exits) ? this.exits : [];
+        const nearExit = (x, y) => exits.some(e =>
+          x > (e.x || 0) - 60 && x < (e.x || 0) + (e.w || 0) + 60 &&
+          y > (e.y || 0) - 60 && y < (e.y || 0) + (e.h || 0) + 60
+        );
+
+        const drawTree = (x, y, s) => {
+          // Sombra
+          this.ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
+          this.ctx.beginPath();
+          this.ctx.ellipse(x + s * 0.5, y + s * 0.95, s * 0.55, s * 0.2, 0, 0, Math.PI * 2);
+          this.ctx.fill();
+          // Tronco
+          this.ctx.fillStyle = '#6b4a2b';
+          this.ctx.fillRect(x + s * 0.42, y + s * 0.55, s * 0.18, s * 0.45);
+          // Copa en capas
+          this.ctx.fillStyle = '#1f5c2e';
+          this.ctx.beginPath();
+          this.ctx.arc(x + s * 0.5, y + s * 0.42, s * 0.52, 0, Math.PI * 2);
+          this.ctx.fill();
+          this.ctx.fillStyle = '#2f7a3d';
+          this.ctx.beginPath();
+          this.ctx.arc(x + s * 0.38, y + s * 0.36, s * 0.36, 0, Math.PI * 2);
+          this.ctx.fill();
+          this.ctx.fillStyle = '#3f9449';
+          this.ctx.beginPath();
+          this.ctx.arc(x + s * 0.62, y + s * 0.3, s * 0.24, 0, Math.PI * 2);
+          this.ctx.fill();
+        };
+
+        // Línea de árboles en el perímetro, respetando las salidas del mapa
+        for (let x = 6; x < w - 10; x += 32 + rnd() * 20) {
+          if (!nearExit(x, 10)) drawTree(x, 4, 24 + rnd() * 10);
+          if (!nearExit(x, h - 34)) drawTree(x, h - 34, 24 + rnd() * 10);
+        }
+        for (let y = 44; y < h - 40; y += 32 + rnd() * 20) {
+          if (!nearExit(6, y)) drawTree(4, y, 22 + rnd() * 8);
+          if (!nearExit(w - 30, y)) drawTree(w - 30, y, 22 + rnd() * 8);
+        }
+
+        // Arbustos y flores en zonas alejadas del camino
+        for (let i = 0; i < 16; i++) {
+          const bx = 50 + rnd() * (w - 100);
+          const by = 50 + rnd() * (h - 100);
+          if (Math.abs(bx - midX) < 60 || Math.abs(by - midY) < 60) continue;
+          this.ctx.fillStyle = '#2f7a3d';
+          this.ctx.beginPath();
+          this.ctx.arc(bx, by, 5 + rnd() * 3, 0, Math.PI * 2);
+          this.ctx.fill();
+          this.ctx.fillStyle = '#3f9449';
+          this.ctx.beginPath();
+          this.ctx.arc(bx - 2, by - 2, 2.5, 0, Math.PI * 2);
+          this.ctx.fill();
+        }
+        const flowerColors = ['#f1c40f', '#e74c3c', '#ffffff', '#e67e22'];
+        for (let i = 0; i < 26; i++) {
+          const fx = 40 + rnd() * (w - 80);
+          const fy = 40 + rnd() * (h - 80);
+          if (Math.abs(fx - midX) < 34 || Math.abs(fy - midY) < 34) continue;
+          this.ctx.fillStyle = flowerColors[Math.floor(rnd() * flowerColors.length)];
+          this.ctx.fillRect(fx, fy, 2, 2);
+          this.ctx.fillRect(fx + 3, fy + 1, 2, 2);
+        }
       }
     }
 
@@ -989,7 +1092,9 @@
       if (!this.otherPlayers || !this.otherPlayers.size) return;
       this.otherPlayers.forEach(p => {
         const pMap = p.mapId || p.map_id;
-        if (pMap && pMap !== this.mapId) return;
+        // Sin mapa conocido solo se muestran en la Sala Unión (no en todo Hoenn).
+        const sameMap = pMap ? (pMap === this.mapId) : (this.mapId === 'grand_hotel_lobby');
+        if (!sameMap) return;
         if (window.currentUser && p.id === window.currentUser.username.toLowerCase()) return;
 
         // Sombra

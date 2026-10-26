@@ -626,6 +626,8 @@ async def websocket_lobby_endpoint(
                     player.dir = str(data["dir"])
                 if "mapId" in data:
                     player.map_id = str(data["mapId"])
+                if "avatar_style" in data:
+                    player.avatar_style = str(data["avatar_style"])[:32]
                 await lobby_manager.broadcast_event({
                     "type": "PLAYER_MOVED",
                     "id": player.id,

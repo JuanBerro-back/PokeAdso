@@ -1,0 +1,1363 @@
+{
+ "1": [
+  {
+   "to": 2,
+   "method": "level-up",
+   "level": 16
+  }
+ ],
+ "2": [
+  {
+   "to": 3,
+   "method": "level-up",
+   "level": 32
+  }
+ ],
+ "4": [
+  {
+   "to": 5,
+   "method": "level-up",
+   "level": 16
+  }
+ ],
+ "5": [
+  {
+   "to": 6,
+   "method": "level-up",
+   "level": 36
+  }
+ ],
+ "7": [
+  {
+   "to": 8,
+   "method": "level-up",
+   "level": 16
+  }
+ ],
+ "8": [
+  {
+   "to": 9,
+   "method": "level-up",
+   "level": 36
+  }
+ ],
+ "10": [
+  {
+   "to": 11,
+   "method": "level-up",
+   "level": 7
+  }
+ ],
+ "11": [
+  {
+   "to": 12,
+   "method": "level-up",
+   "level": 10
+  }
+ ],
+ "13": [
+  {
+   "to": 14,
+   "method": "level-up",
+   "level": 7
+  }
+ ],
+ "14": [
+  {
+   "to": 15,
+   "method": "level-up",
+   "level": 10
+  }
+ ],
+ "16": [
+  {
+   "to": 17,
+   "method": "level-up",
+   "level": 18
+  }
+ ],
+ "17": [
+  {
+   "to": 18,
+   "method": "level-up",
+   "level": 36
+  }
+ ],
+ "19": [
+  {
+   "to": 20,
+   "method": "level-up",
+   "level": 20
+  },
+  {
+   "to": 20,
+   "method": "level-up",
+   "level": 20,
+   "time_of_day": "night"
+  }
+ ],
+ "21": [
+  {
+   "to": 22,
+   "method": "level-up",
+   "level": 20
+  }
+ ],
+ "23": [
+  {
+   "to": 24,
+   "method": "level-up",
+   "level": 22
+  }
+ ],
+ "25": [
+  {
+   "to": 26,
+   "method": "use-item",
+   "item": "thunder-stone"
+  }
+ ],
+ "27": [
+  {
+   "to": 28,
+   "method": "level-up",
+   "level": 22
+  },
+  {
+   "to": 28,
+   "method": "use-item",
+   "item": "ice-stone"
+  }
+ ],
+ "29": [
+  {
+   "to": 30,
+   "method": "level-up",
+   "level": 16
+  }
+ ],
+ "30": [
+  {
+   "to": 31,
+   "method": "use-item",
+   "item": "moon-stone"
+  }
+ ],
+ "32": [
+  {
+   "to": 33,
+   "method": "level-up",
+   "level": 16
+  }
+ ],
+ "33": [
+  {
+   "to": 34,
+   "method": "use-item",
+   "item": "moon-stone"
+  }
+ ],
+ "35": [
+  {
+   "to": 36,
+   "method": "use-item",
+   "item": "moon-stone"
+  }
+ ],
+ "37": [
+  {
+   "to": 38,
+   "method": "use-item",
+   "item": "fire-stone"
+  },
+  {
+   "to": 38,
+   "method": "use-item",
+   "item": "ice-stone"
+  }
+ ],
+ "39": [
+  {
+   "to": 40,
+   "method": "use-item",
+   "item": "moon-stone"
+  }
+ ],
+ "41": [
+  {
+   "to": 42,
+   "method": "level-up",
+   "level": 22
+  }
+ ],
+ "42": [
+  {
+   "to": 169,
+   "method": "level-up",
+   "min_happiness": 160
+  }
+ ],
+ "43": [
+  {
+   "to": 44,
+   "method": "level-up",
+   "level": 21
+  }
+ ],
+ "44": [
+  {
+   "to": 45,
+   "method": "use-item",
+   "item": "leaf-stone"
+  },
+  {
+   "to": 182,
+   "method": "use-item",
+   "item": "sun-stone"
+  }
+ ],
+ "46": [
+  {
+   "to": 47,
+   "method": "level-up",
+   "level": 24
+  }
+ ],
+ "48": [
+  {
+   "to": 49,
+   "method": "level-up",
+   "level": 31
+  }
+ ],
+ "50": [
+  {
+   "to": 51,
+   "method": "level-up",
+   "level": 26
+  }
+ ],
+ "52": [
+  {
+   "to": 53,
+   "method": "level-up",
+   "level": 28
+  },
+  {
+   "to": 53,
+   "method": "level-up",
+   "min_happiness": 160
+  }
+ ],
+ "54": [
+  {
+   "to": 55,
+   "method": "level-up",
+   "level": 33
+  }
+ ],
+ "56": [
+  {
+   "to": 57,
+   "method": "level-up",
+   "level": 28
+  }
+ ],
+ "58": [
+  {
+   "to": 59,
+   "method": "use-item",
+   "item": "fire-stone"
+  }
+ ],
+ "60": [
+  {
+   "to": 61,
+   "method": "level-up",
+   "level": 25
+  }
+ ],
+ "61": [
+  {
+   "to": 62,
+   "method": "use-item",
+   "item": "water-stone"
+  },
+  {
+   "to": 186,
+   "method": "trade",
+   "held_item": "kings-rock"
+  }
+ ],
+ "63": [
+  {
+   "to": 64,
+   "method": "level-up",
+   "level": 16
+  }
+ ],
+ "64": [
+  {
+   "to": 65,
+   "method": "trade"
+  }
+ ],
+ "66": [
+  {
+   "to": 67,
+   "method": "level-up",
+   "level": 28
+  }
+ ],
+ "67": [
+  {
+   "to": 68,
+   "method": "trade"
+  }
+ ],
+ "69": [
+  {
+   "to": 70,
+   "method": "level-up",
+   "level": 21
+  }
+ ],
+ "70": [
+  {
+   "to": 71,
+   "method": "use-item",
+   "item": "leaf-stone"
+  }
+ ],
+ "72": [
+  {
+   "to": 73,
+   "method": "level-up",
+   "level": 30
+  }
+ ],
+ "74": [
+  {
+   "to": 75,
+   "method": "level-up",
+   "level": 25
+  }
+ ],
+ "75": [
+  {
+   "to": 76,
+   "method": "trade"
+  }
+ ],
+ "77": [
+  {
+   "to": 78,
+   "method": "level-up",
+   "level": 40
+  }
+ ],
+ "79": [
+  {
+   "to": 80,
+   "method": "level-up",
+   "level": 37
+  },
+  {
+   "to": 80,
+   "method": "use-item",
+   "item": "galarica-cuff"
+  },
+  {
+   "to": 199,
+   "method": "trade",
+   "held_item": "kings-rock"
+  },
+  {
+   "to": 199,
+   "method": "use-item",
+   "item": "galarica-wreath"
+  }
+ ],
+ "81": [
+  {
+   "to": 82,
+   "method": "level-up",
+   "level": 30
+  }
+ ],
+ "84": [
+  {
+   "to": 85,
+   "method": "level-up",
+   "level": 31
+  }
+ ],
+ "86": [
+  {
+   "to": 87,
+   "method": "level-up",
+   "level": 34
+  }
+ ],
+ "88": [
+  {
+   "to": 89,
+   "method": "level-up",
+   "level": 38
+  }
+ ],
+ "90": [
+  {
+   "to": 91,
+   "method": "use-item",
+   "item": "water-stone"
+  }
+ ],
+ "92": [
+  {
+   "to": 93,
+   "method": "level-up",
+   "level": 25
+  }
+ ],
+ "93": [
+  {
+   "to": 94,
+   "method": "trade"
+  }
+ ],
+ "95": [
+  {
+   "to": 208,
+   "method": "trade",
+   "held_item": "metal-coat"
+  }
+ ],
+ "96": [
+  {
+   "to": 97,
+   "method": "level-up",
+   "level": 26
+  }
+ ],
+ "98": [
+  {
+   "to": 99,
+   "method": "level-up",
+   "level": 28
+  }
+ ],
+ "100": [
+  {
+   "to": 101,
+   "method": "level-up",
+   "level": 30
+  },
+  {
+   "to": 101,
+   "method": "use-item",
+   "item": "leaf-stone"
+  }
+ ],
+ "102": [
+  {
+   "to": 103,
+   "method": "use-item",
+   "item": "leaf-stone"
+  }
+ ],
+ "104": [
+  {
+   "to": 105,
+   "method": "level-up",
+   "level": 28
+  },
+  {
+   "to": 105,
+   "method": "level-up",
+   "level": 28,
+   "time_of_day": "night"
+  }
+ ],
+ "109": [
+  {
+   "to": 110,
+   "method": "level-up",
+   "level": 35
+  }
+ ],
+ "111": [
+  {
+   "to": 112,
+   "method": "level-up",
+   "level": 42
+  }
+ ],
+ "113": [
+  {
+   "to": 242,
+   "method": "level-up",
+   "min_happiness": 160
+  }
+ ],
+ "116": [
+  {
+   "to": 117,
+   "method": "level-up",
+   "level": 32
+  }
+ ],
+ "117": [
+  {
+   "to": 230,
+   "method": "trade",
+   "held_item": "dragon-scale"
+  }
+ ],
+ "118": [
+  {
+   "to": 119,
+   "method": "level-up",
+   "level": 33
+  }
+ ],
+ "120": [
+  {
+   "to": 121,
+   "method": "use-item",
+   "item": "water-stone"
+  }
+ ],
+ "123": [
+  {
+   "to": 212,
+   "method": "trade",
+   "held_item": "metal-coat"
+  }
+ ],
+ "129": [
+  {
+   "to": 130,
+   "method": "level-up",
+   "level": 20
+  }
+ ],
+ "133": [
+  {
+   "to": 134,
+   "method": "use-item",
+   "item": "water-stone"
+  },
+  {
+   "to": 135,
+   "method": "use-item",
+   "item": "thunder-stone"
+  },
+  {
+   "to": 136,
+   "method": "use-item",
+   "item": "fire-stone"
+  },
+  {
+   "to": 196,
+   "method": "level-up",
+   "time_of_day": "day",
+   "min_happiness": 160
+  },
+  {
+   "to": 197,
+   "method": "level-up",
+   "time_of_day": "night",
+   "min_happiness": 160
+  }
+ ],
+ "137": [
+  {
+   "to": 233,
+   "method": "trade",
+   "held_item": "up-grade"
+  }
+ ],
+ "138": [
+  {
+   "to": 139,
+   "method": "level-up",
+   "level": 40
+  }
+ ],
+ "140": [
+  {
+   "to": 141,
+   "method": "level-up",
+   "level": 40
+  }
+ ],
+ "147": [
+  {
+   "to": 148,
+   "method": "level-up",
+   "level": 30
+  }
+ ],
+ "148": [
+  {
+   "to": 149,
+   "method": "level-up",
+   "level": 55
+  }
+ ],
+ "152": [
+  {
+   "to": 153,
+   "method": "level-up",
+   "level": 16
+  }
+ ],
+ "153": [
+  {
+   "to": 154,
+   "method": "level-up",
+   "level": 32
+  }
+ ],
+ "155": [
+  {
+   "to": 156,
+   "method": "level-up",
+   "level": 14
+  },
+  {
+   "to": 156,
+   "method": "level-up",
+   "level": 17
+  }
+ ],
+ "156": [
+  {
+   "to": 157,
+   "method": "level-up",
+   "level": 36
+  }
+ ],
+ "158": [
+  {
+   "to": 159,
+   "method": "level-up",
+   "level": 18
+  }
+ ],
+ "159": [
+  {
+   "to": 160,
+   "method": "level-up",
+   "level": 30
+  }
+ ],
+ "161": [
+  {
+   "to": 162,
+   "method": "level-up",
+   "level": 15
+  }
+ ],
+ "163": [
+  {
+   "to": 164,
+   "method": "level-up",
+   "level": 20
+  }
+ ],
+ "165": [
+  {
+   "to": 166,
+   "method": "level-up",
+   "level": 18
+  }
+ ],
+ "167": [
+  {
+   "to": 168,
+   "method": "level-up",
+   "level": 22
+  }
+ ],
+ "170": [
+  {
+   "to": 171,
+   "method": "level-up",
+   "level": 27
+  }
+ ],
+ "172": [
+  {
+   "to": 25,
+   "method": "level-up",
+   "min_happiness": 220
+  }
+ ],
+ "173": [
+  {
+   "to": 35,
+   "method": "level-up",
+   "min_happiness": 160
+  }
+ ],
+ "174": [
+  {
+   "to": 39,
+   "method": "level-up",
+   "min_happiness": 160
+  }
+ ],
+ "175": [
+  {
+   "to": 176,
+   "method": "level-up",
+   "min_happiness": 160
+  }
+ ],
+ "177": [
+  {
+   "to": 178,
+   "method": "level-up",
+   "level": 25
+  }
+ ],
+ "179": [
+  {
+   "to": 180,
+   "method": "level-up",
+   "level": 15
+  }
+ ],
+ "180": [
+  {
+   "to": 181,
+   "method": "level-up",
+   "level": 30
+  }
+ ],
+ "183": [
+  {
+   "to": 184,
+   "method": "level-up",
+   "level": 18
+  }
+ ],
+ "187": [
+  {
+   "to": 188,
+   "method": "level-up",
+   "level": 18
+  }
+ ],
+ "188": [
+  {
+   "to": 189,
+   "method": "level-up",
+   "level": 27
+  }
+ ],
+ "191": [
+  {
+   "to": 192,
+   "method": "use-item",
+   "item": "sun-stone"
+  }
+ ],
+ "194": [
+  {
+   "to": 195,
+   "method": "level-up",
+   "level": 20
+  }
+ ],
+ "204": [
+  {
+   "to": 205,
+   "method": "level-up",
+   "level": 31
+  }
+ ],
+ "209": [
+  {
+   "to": 210,
+   "method": "level-up",
+   "level": 23
+  }
+ ],
+ "216": [
+  {
+   "to": 217,
+   "method": "level-up",
+   "level": 30
+  }
+ ],
+ "218": [
+  {
+   "to": 219,
+   "method": "level-up",
+   "level": 38
+  }
+ ],
+ "220": [
+  {
+   "to": 221,
+   "method": "level-up",
+   "level": 33
+  }
+ ],
+ "223": [
+  {
+   "to": 224,
+   "method": "level-up",
+   "level": 25
+  }
+ ],
+ "228": [
+  {
+   "to": 229,
+   "method": "level-up",
+   "level": 24
+  }
+ ],
+ "231": [
+  {
+   "to": 232,
+   "method": "level-up",
+   "level": 25
+  }
+ ],
+ "236": [
+  {
+   "to": 106,
+   "method": "level-up",
+   "level": 20
+  },
+  {
+   "to": 107,
+   "method": "level-up",
+   "level": 20
+  },
+  {
+   "to": 237,
+   "method": "level-up",
+   "level": 20
+  }
+ ],
+ "238": [
+  {
+   "to": 124,
+   "method": "level-up",
+   "level": 30
+  }
+ ],
+ "239": [
+  {
+   "to": 125,
+   "method": "level-up",
+   "level": 30
+  }
+ ],
+ "240": [
+  {
+   "to": 126,
+   "method": "level-up",
+   "level": 30
+  }
+ ],
+ "246": [
+  {
+   "to": 247,
+   "method": "level-up",
+   "level": 30
+  }
+ ],
+ "247": [
+  {
+   "to": 248,
+   "method": "level-up",
+   "level": 55
+  }
+ ],
+ "252": [
+  {
+   "to": 253,
+   "method": "level-up",
+   "level": 16
+  }
+ ],
+ "253": [
+  {
+   "to": 254,
+   "method": "level-up",
+   "level": 36
+  }
+ ],
+ "255": [
+  {
+   "to": 256,
+   "method": "level-up",
+   "level": 16
+  }
+ ],
+ "256": [
+  {
+   "to": 257,
+   "method": "level-up",
+   "level": 36
+  }
+ ],
+ "258": [
+  {
+   "to": 259,
+   "method": "level-up",
+   "level": 16
+  }
+ ],
+ "259": [
+  {
+   "to": 260,
+   "method": "level-up",
+   "level": 36
+  }
+ ],
+ "261": [
+  {
+   "to": 262,
+   "method": "level-up",
+   "level": 18
+  }
+ ],
+ "263": [
+  {
+   "to": 264,
+   "method": "level-up",
+   "level": 20
+  }
+ ],
+ "265": [
+  {
+   "to": 266,
+   "method": "level-up",
+   "level": 7
+  },
+  {
+   "to": 268,
+   "method": "level-up",
+   "level": 7
+  }
+ ],
+ "266": [
+  {
+   "to": 267,
+   "method": "level-up",
+   "level": 10
+  }
+ ],
+ "268": [
+  {
+   "to": 269,
+   "method": "level-up",
+   "level": 10
+  }
+ ],
+ "270": [
+  {
+   "to": 271,
+   "method": "level-up",
+   "level": 14
+  }
+ ],
+ "271": [
+  {
+   "to": 272,
+   "method": "use-item",
+   "item": "water-stone"
+  }
+ ],
+ "273": [
+  {
+   "to": 274,
+   "method": "level-up",
+   "level": 14
+  }
+ ],
+ "274": [
+  {
+   "to": 275,
+   "method": "use-item",
+   "item": "leaf-stone"
+  }
+ ],
+ "276": [
+  {
+   "to": 277,
+   "method": "level-up",
+   "level": 22
+  }
+ ],
+ "278": [
+  {
+   "to": 279,
+   "method": "level-up",
+   "level": 25
+  }
+ ],
+ "280": [
+  {
+   "to": 281,
+   "method": "level-up",
+   "level": 20
+  }
+ ],
+ "281": [
+  {
+   "to": 282,
+   "method": "level-up",
+   "level": 30
+  }
+ ],
+ "283": [
+  {
+   "to": 284,
+   "method": "level-up",
+   "level": 22
+  }
+ ],
+ "285": [
+  {
+   "to": 286,
+   "method": "level-up",
+   "level": 23
+  }
+ ],
+ "287": [
+  {
+   "to": 288,
+   "method": "level-up",
+   "level": 18
+  }
+ ],
+ "288": [
+  {
+   "to": 289,
+   "method": "level-up",
+   "level": 36
+  }
+ ],
+ "290": [
+  {
+   "to": 291,
+   "method": "level-up",
+   "level": 20
+  },
+  {
+   "to": 292,
+   "method": "shed"
+  }
+ ],
+ "293": [
+  {
+   "to": 294,
+   "method": "level-up",
+   "level": 20
+  }
+ ],
+ "294": [
+  {
+   "to": 295,
+   "method": "level-up",
+   "level": 40
+  }
+ ],
+ "296": [
+  {
+   "to": 297,
+   "method": "level-up",
+   "level": 24
+  }
+ ],
+ "298": [
+  {
+   "to": 183,
+   "method": "level-up",
+   "min_happiness": 160
+  }
+ ],
+ "300": [
+  {
+   "to": 301,
+   "method": "use-item",
+   "item": "moon-stone"
+  }
+ ],
+ "304": [
+  {
+   "to": 305,
+   "method": "level-up",
+   "level": 32
+  }
+ ],
+ "305": [
+  {
+   "to": 306,
+   "method": "level-up",
+   "level": 42
+  }
+ ],
+ "307": [
+  {
+   "to": 308,
+   "method": "level-up",
+   "level": 37
+  }
+ ],
+ "309": [
+  {
+   "to": 310,
+   "method": "level-up",
+   "level": 26
+  }
+ ],
+ "316": [
+  {
+   "to": 317,
+   "method": "level-up",
+   "level": 26
+  }
+ ],
+ "318": [
+  {
+   "to": 319,
+   "method": "level-up",
+   "level": 30
+  }
+ ],
+ "320": [
+  {
+   "to": 321,
+   "method": "level-up",
+   "level": 40
+  }
+ ],
+ "322": [
+  {
+   "to": 323,
+   "method": "level-up",
+   "level": 33
+  }
+ ],
+ "325": [
+  {
+   "to": 326,
+   "method": "level-up",
+   "level": 32
+  }
+ ],
+ "328": [
+  {
+   "to": 329,
+   "method": "level-up",
+   "level": 35
+  }
+ ],
+ "329": [
+  {
+   "to": 330,
+   "method": "level-up",
+   "level": 45
+  }
+ ],
+ "331": [
+  {
+   "to": 332,
+   "method": "level-up",
+   "level": 32
+  }
+ ],
+ "333": [
+  {
+   "to": 334,
+   "method": "level-up",
+   "level": 35
+  }
+ ],
+ "339": [
+  {
+   "to": 340,
+   "method": "level-up",
+   "level": 30
+  }
+ ],
+ "341": [
+  {
+   "to": 342,
+   "method": "level-up",
+   "level": 30
+  }
+ ],
+ "343": [
+  {
+   "to": 344,
+   "method": "level-up",
+   "level": 36
+  }
+ ],
+ "345": [
+  {
+   "to": 346,
+   "method": "level-up",
+   "level": 40
+  }
+ ],
+ "347": [
+  {
+   "to": 348,
+   "method": "level-up",
+   "level": 40
+  }
+ ],
+ "349": [
+  {
+   "to": 350,
+   "method": "level-up"
+  },
+  {
+   "to": 350,
+   "method": "trade",
+   "held_item": "prism-scale"
+  }
+ ],
+ "353": [
+  {
+   "to": 354,
+   "method": "level-up",
+   "level": 37
+  }
+ ],
+ "355": [
+  {
+   "to": 356,
+   "method": "level-up",
+   "level": 37
+  }
+ ],
+ "360": [
+  {
+   "to": 202,
+   "method": "level-up",
+   "level": 15
+  }
+ ],
+ "361": [
+  {
+   "to": 362,
+   "method": "level-up",
+   "level": 42
+  }
+ ],
+ "363": [
+  {
+   "to": 364,
+   "method": "level-up",
+   "level": 32
+  }
+ ],
+ "364": [
+  {
+   "to": 365,
+   "method": "level-up",
+   "level": 44
+  }
+ ],
+ "366": [
+  {
+   "to": 367,
+   "method": "trade",
+   "held_item": "deep-sea-tooth"
+  },
+  {
+   "to": 368,
+   "method": "trade",
+   "held_item": "deep-sea-scale"
+  }
+ ],
+ "371": [
+  {
+   "to": 372,
+   "method": "level-up",
+   "level": 30
+  }
+ ],
+ "372": [
+  {
+   "to": 373,
+   "method": "level-up",
+   "level": 50
+  }
+ ],
+ "374": [
+  {
+   "to": 375,
+   "method": "level-up",
+   "level": 20
+  }
+ ],
+ "375": [
+  {
+   "to": 376,
+   "method": "level-up",
+   "level": 45
+  }
+ ],
+ "406": [
+  {
+   "to": 315,
+   "method": "level-up",
+   "time_of_day": "day",
+   "min_happiness": 160
+  }
+ ],
+ "433": [
+  {
+   "to": 358,
+   "method": "level-up",
+   "time_of_day": "night",
+   "min_happiness": 220
+  }
+ ],
+ "438": [
+  {
+   "to": 185,
+   "method": "level-up"
+  }
+ ],
+ "439": [
+  {
+   "to": 122,
+   "method": "level-up"
+  }
+ ],
+ "440": [
+  {
+   "to": 113,
+   "method": "level-up",
+   "held_item": "oval-stone",
+   "time_of_day": "day"
+  }
+ ],
+ "446": [
+  {
+   "to": 143,
+   "method": "level-up",
+   "min_happiness": 160
+  }
+ ],
+ "458": [
+  {
+   "to": 226,
+   "method": "level-up"
+  }
+ ]
+}

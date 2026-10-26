@@ -358,6 +358,11 @@
 
         this.socket.onopen = () => {
           console.log('MultiplayerLobby: Conectado a la sala multijugador.');
+          // Sincroniza el color de bandana elegido en el lobby 3D.
+          try {
+            const variant = Number(localStorage.getItem('pokepoke.bandana')) || 0;
+            this.sendAvatarStyle(variant);
+          } catch (error) { /* almacenamiento bloqueado */ }
         };
 
         this.socket.onmessage = (event) => {
@@ -473,9 +478,33 @@
           x: Math.round(x),
           y: Math.round(y),
           dir: dir,
-          mapId: mapId
+          mapId: mapId,
+          avatar_style: this.getAvatarStyle()
         }));
       }
+    }
+
+    getAvatarStyle() {
+      try {
+        const variant = Number(localStorage.getItem('pokepoke.bandana')) || 0;
+        return `brendan:${Math.max(0, Math.min(5, variant))}`;
+      } catch (error) {
+        return 'brendan:0';
+      }
+    }
+
+    sendAvatarStyle(variant) {
+      if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+      const renderer = window.worldTileRenderer;
+      const position = (renderer && renderer.playerPos) || { x: 240, y: 240 };
+      this.sendAction('UPDATE_STATE', {
+        state: 'EXPLORING',
+        x: Math.round(position.x),
+        y: Math.round(position.y),
+        dir: (renderer && renderer.playerDir) || 'down',
+        mapId: (renderer && renderer.mapId) || 'grand_hotel_lobby',
+        avatar_style: `brendan:${Math.max(0, Math.min(5, Number(variant) || 0))}`
+      });
     }
 
     sendChat(text, scope = 'ROOM', targetId = null) {
@@ -562,7 +591,7 @@
 
     sendChallenge(targetId) {
       if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-        const team = (global).App && (global).App.getPvpTeamPayload ? (global).App.getPvpTeamPayload() : null;
+        const team = window.App && window.App.getPvpTeamPayload ? window.App.getPvpTeamPayload() : null;
         this.socket.send(JSON.stringify({
           action: 'CHALLENGE_TRAINER',
           target_id: targetId,

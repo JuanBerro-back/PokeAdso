@@ -5,7 +5,7 @@ a = Analysis(
     ['launcher.py'],
     pathex=[],
     binaries=[],
-    datas=[('pokedex.html', '.'), ('admin.html', '.'), ('admin.css', '.'), ('admin.js', '.'), ('auth.js', '.'), ('assets', 'assets'), ('pokemon_kanto_background.jpg', '.'), ('modules', 'modules'), ('data', 'data'), ('monster_engine', 'monster_engine')],
+    datas=[('pokedex.html', '.'), ('admin.html', '.'), ('admin.css', '.'), ('admin.js', '.'), ('auth.js', '.'), ('assets', 'assets'), ('pokemon_kanto_background.jpg', '.'), ('modules', 'modules'), ('vendor', 'vendor'), ('data', 'data'), ('monster_engine', 'monster_engine')],
     hiddenimports=['uvicorn.logging', 'uvicorn.loops.auto', 'uvicorn.protocols.http.auto', 'uvicorn.protocols.websockets.auto'],
     hookspath=[],
     hooksconfig={},
