@@ -72,6 +72,23 @@
   font-weight: 500;
 }
 
+/* Aviso de zona de Pokémon salvajes (hierba alta) */
+.world3d-hud .w3d-wild {
+  border-color: rgba(126, 217, 87, 0.75);
+  background: rgba(24, 74, 30, 0.9);
+  color: #d6ffb8;
+  animation: w3d-wild-pulse 1.9s ease-in-out infinite;
+}
+
+.world3d-hud .w3d-wild i {
+  color: #9ef06b;
+}
+
+@keyframes w3d-wild-pulse {
+  0%, 100% { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22), 0 0 0 0 rgba(126, 217, 87, 0.35); }
+  50% { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22), 0 0 0 6px rgba(126, 217, 87, 0); }
+}
+
 #toggle3dBtn.is-active {
   border-color: #e9b85e;
   color: #ffe8b0;

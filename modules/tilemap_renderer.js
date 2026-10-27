@@ -1019,13 +1019,30 @@
     }
 
     renderFlowerPatches() {
+      const img = this.flowerPatchImage;
+      const ready = !!(img && img.complete && img.naturalWidth > 0);
+      if (ready && !this.__flowerPattern) {
+        try { this.__flowerPattern = this.ctx.createPattern(img, 'repeat'); } catch (error) { this.__flowerPattern = null; }
+      }
       for (const fp of this.flowerPatches) {
-        if (this.flowerPatchImage && this.flowerPatchImage.complete && this.flowerPatchImage.naturalWidth > 0) {
-          this.ctx.drawImage(this.flowerPatchImage, fp.x, fp.y, fp.w, fp.h);
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.ctx.rect(fp.x, fp.y, fp.w, fp.h);
+        this.ctx.clip();
+        this.ctx.imageSmoothingEnabled = false;
+        if (ready && this.__flowerPattern) {
+          // Se repite el tile de hierba alta en vez de estirarlo: se lee mejor.
+          this.ctx.fillStyle = this.__flowerPattern;
+          this.ctx.fillRect(fp.x, fp.y, fp.w, fp.h);
         } else {
-          this.ctx.fillStyle = 'rgba(46, 204, 113, 0.25)';
+          this.ctx.fillStyle = 'rgba(46, 204, 113, 0.3)';
           this.ctx.fillRect(fp.x, fp.y, fp.w, fp.h);
         }
+        // Borde tenue para señalar la zona de Pokémon salvajes.
+        this.ctx.strokeStyle = 'rgba(150, 235, 120, 0.5)';
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(fp.x + 1, fp.y + 1, Math.max(1, fp.w - 2), Math.max(1, fp.h - 2));
+        this.ctx.restore();
       }
     }
 

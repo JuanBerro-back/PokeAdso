@@ -5,7 +5,113 @@
  */
 "use strict";
 (function (window) {
-  const BASE_URL = window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : window.location.origin;
+  /**
+   * Base de la API. En GitHub Pages (hosting estático) no existe /api, así que
+   * se puede apuntar a un backend real con:
+   *   - <meta name="pokepoke-api" content="https://mi-backend.onrender.com">
+   *   - window.POKEPOKE_API_BASE = 'https://...'
+   *   - localStorage.setItem('pokepoke.apiBase', 'https://...')
+   * Si no hay backend, la pantalla funciona con cuentas locales del navegador.
+   */
+  function resolveApiBase() {
+    let stored = null;
+    try { stored = localStorage.getItem('pokepoke.apiBase'); } catch { /* modo privado */ }
+    const meta = document.querySelector('meta[name="pokepoke-api"]');
+    const override = window.POKEPOKE_API_BASE || (meta && meta.content) || stored;
+    if (override) return String(override).trim().replace(/\/+$/, '');
+    if (window.location.protocol === 'file:') return 'http://127.0.0.1:8000';
+    return window.location.origin;
+  }
+  const BASE_URL = resolveApiBase();
+
+  const LOCAL_ACCOUNTS_KEY = 'pokepoke.localAccounts';
+  let serverOnline = false;
+
+  class ApiOfflineError extends Error {}
+
+  /** fetch a la API que distingue "sin backend" (HTML) de un error real (JSON). */
+  async function apiJson(path, options = {}) {
+    let res;
+    try {
+      res = await fetch(`${BASE_URL}${path}`, options);
+    } catch {
+      throw new ApiOfflineError('No se pudo conectar con el servidor del juego.');
+    }
+    const type = res.headers.get('content-type') || '';
+    if (!type.includes('json')) {
+      throw new ApiOfflineError('Esta dirección solo sirve archivos estáticos: no hay servidor del juego para cuentas y MMO.');
+    }
+    let body = null;
+    try { body = await res.json(); } catch { throw new ApiOfflineError('El servidor devolvió una respuesta no válida.'); }
+    if (!res.ok) {
+      const detail = body && body.detail;
+      const message = typeof detail === 'string'
+        ? detail
+        : (detail && detail.message) || (detail && detail[0] && detail[0].msg) || 'Error del servidor.';
+      throw new Error(message);
+    }
+    return body;
+  }
+
+  function readLocalAccounts() {
+    try {
+      const raw = localStorage.getItem(LOCAL_ACCOUNTS_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch { return {}; }
+  }
+
+  function writeLocalAccounts(map) {
+    try { localStorage.setItem(LOCAL_ACCOUNTS_KEY, JSON.stringify(map)); } catch { /* sin espacio */ }
+  }
+
+  async function hashPassword(password) {
+    const text = `pokepoke:${password}`;
+    if (window.crypto && window.crypto.subtle && window.TextEncoder) {
+      try {
+        const digest = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+        return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+      } catch { /* usar el hash simple */ }
+    }
+    let hash = 5381;
+    for (let i = 0; i < text.length; i += 1) hash = ((hash << 5) + hash + text.charCodeAt(i)) >>> 0;
+    return `h${hash.toString(16)}`;
+  }
+
+  function localSession(account) {
+    return {
+      token: `local-${account.username}-${Date.now().toString(36)}`,
+      username: account.username,
+      email: account.email || '',
+      starter_id: account.starterId,
+      avatar_style: account.avatarStyle,
+      isLocal: true,
+    };
+  }
+
+  async function registerLocally(u, p, e) {
+    const accounts = readLocalAccounts();
+    const key = u.toLowerCase();
+    if (accounts[key]) throw new Error('Ya existe una cuenta con ese nombre en este navegador.');
+    accounts[key] = {
+      username: u,
+      email: e,
+      passwordHash: await hashPassword(p),
+      starterId: selStarter,
+      avatarStyle: selAvatar,
+      createdAt: Date.now(),
+    };
+    writeLocalAccounts(accounts);
+    return localSession(accounts[key]);
+  }
+
+  async function loginLocally(u, p) {
+    const accounts = readLocalAccounts();
+    const account = accounts[u.toLowerCase()];
+    if (!account) throw new Error('No hay ninguna cuenta con ese nombre en este navegador.');
+    if (account.passwordHash !== await hashPassword(p)) throw new Error('Contraseña incorrecta.');
+    return localSession(account);
+  }
 
   const CSS = `
     #authScreen{position:fixed;inset:0;z-index:99999;background:radial-gradient(ellipse at 60% 40%,#0d1b3e 0%,#060c1a 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Inter','Segoe UI',sans-serif;overflow:hidden;color:#e8eaf6;transition:opacity .6s ease;}
@@ -176,19 +282,21 @@
 
   async function checkServer() {
     try {
-      const r=await fetch(`${BASE_URL}/api/system/health`,{signal:AbortSignal.timeout(4000)});
-      if(!r.ok) throw new Error();
+      await apiJson('/api/system/health', { signal: AbortSignal.timeout(4000) });
+      serverOnline = true;
       const badge=document.getElementById('authBadge');
       if(badge){badge.className='auth-online-badge';badge.innerHTML='<div class="dot"></div><span>Servidor en línea ✓</span>';}
       try {
-        const pr=await fetch(`${BASE_URL}/api/lobby/players`,{signal:AbortSignal.timeout(2000)});
-        if(pr.ok){const d=await pr.json();const c=document.getElementById('authOnline');if(c)c.innerHTML=`<strong>${d.count}</strong> entrenador${d.count!==1?'es':''} conectado${d.count!==1?'s':''} ahora mismo`;}
+        const d = await apiJson('/api/lobby/players', { signal: AbortSignal.timeout(2000) });
+        const c=document.getElementById('authOnline');
+        if(c&&d&&typeof d.count==='number')c.innerHTML=`<strong>${d.count}</strong> entrenador${d.count!==1?'es':''} conectado${d.count!==1?'s':''} ahora mismo`;
       } catch {}
     } catch {
+      serverOnline = false;
       const badge=document.getElementById('authBadge');
-      if(badge){badge.className='auth-online-badge offline';badge.innerHTML='<div class="dot"></div><span>Servidor offline</span>';}
+      if(badge){badge.className='auth-online-badge offline';badge.innerHTML='<div class="dot"></div><span>Modo local (sin servidor)</span>';}
       const c=document.getElementById('authOnline');
-      if(c)c.textContent='Servidor offline — entra como invitado para explorar sin conexión.';
+      if(c)c.textContent='Sin servidor MMO: puedes crear una cuenta local que se guarda en este navegador.';
     }
   }
 
@@ -227,13 +335,20 @@
     if(!p) return showMsg('Introduce tu contraseña.');
     setLoading('loginBtn',true);
     try {
-      const res=await fetch(`${BASE_URL}/api/auth/login`,{
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({username:u,password:p}),
-        signal:AbortSignal.timeout(8000)
-      });
-      const body=await res.json();
-      if(!res.ok) throw new Error(body?.detail?.message||body?.detail||'Credenciales incorrectas.');
+      let body;
+      try {
+        body=await apiJson('/api/auth/login',{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({username:u,password:p}),
+          signal:AbortSignal.timeout(8000)
+        });
+      } catch (apiErr) {
+        if (!(apiErr instanceof ApiOfflineError)) throw apiErr;
+        body=await loginLocally(u,p);
+        showMsg(`Sesión local iniciada, ${body.username}. Sin MMO en esta dirección. 🎮`,'success');
+        setTimeout(()=>onAuth({...body,isGuest:false}),900);
+        return;
+      }
       showMsg(`¡Bienvenido de vuelta, ${body.username}! 🎮`,'success');
       setTimeout(()=>onAuth({...body,isGuest:false}),900);
     } catch(err) {
@@ -251,13 +366,20 @@
     if(!/^[a-zA-ZÀ-ÿ0-9_\-.]+$/.test(u)) return showMsg('Solo letras, números, _ o - en el nombre.');
     setLoading('regBtn',true);
     try {
-      const res=await fetch(`${BASE_URL}/api/auth/register`,{
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({username:u,password:p,email:e,starter_id:selStarter,avatar_style:selAvatar}),
-        signal:AbortSignal.timeout(8000)
-      });
-      const body=await res.json();
-      if(!res.ok) throw new Error(body?.detail?.message||body?.detail||'No se pudo crear la cuenta.');
+      let body;
+      try {
+        body=await apiJson('/api/auth/register',{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({username:u,password:p,email:e,starter_id:selStarter,avatar_style:selAvatar}),
+          signal:AbortSignal.timeout(8000)
+        });
+      } catch (apiErr) {
+        if (!(apiErr instanceof ApiOfflineError)) throw apiErr;
+        body=await registerLocally(u,p,e);
+        showMsg(`¡Cuenta local creada! ${body.username}, tu progreso se guardará en este navegador. 🌟`,'success');
+        setTimeout(()=>onAuth({...body,isGuest:false}),1200);
+        return;
+      }
       showMsg(`¡Cuenta creada! ¡Bienvenido a Hoenn, ${body.username}! 🌟`,'success');
       setTimeout(()=>onAuth({...body,isGuest:false}),1100);
     } catch(err) {
@@ -278,14 +400,18 @@
         try{
           const u=JSON.parse(stored);
           if(u.username&&u.token){
-            fetch(`${BASE_URL}/api/system/health`,{signal:AbortSignal.timeout(3000)})
-              .then(r=>{
-                if(r.ok){
-                  if(window.GameClient) window.GameClient.token=token;
-                  if(typeof window.onPlayerAuthenticated==='function')
-                    window.onPlayerAuthenticated({token,username:u.username,isGuest:false});
-                } else inject();
-              }).catch(()=>inject());
+            const restore=()=>{
+              if(window.GameClient) window.GameClient.token=token;
+              if(typeof window.onPlayerAuthenticated==='function')
+                window.onPlayerAuthenticated({token,username:u.username,isGuest:false});
+            };
+            // Las cuentas locales del navegador no necesitan backend.
+            if(String(token).startsWith('local-')){
+              if(readLocalAccounts()[u.username.toLowerCase()]){ restore(); return; }
+            }
+            apiJson('/api/system/health',{signal:AbortSignal.timeout(3000)})
+              .then(()=>restore())
+              .catch(()=>inject());
             return;
           }
         } catch {}

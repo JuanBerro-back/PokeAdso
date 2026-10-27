@@ -45,7 +45,12 @@
 
   class GameClient {
     constructor(baseUrl = '') {
-      this.baseUrl = baseUrl || (window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : window.location.origin);
+      const meta = document.querySelector('meta[name="pokepoke-api"]');
+      let stored = null;
+      try { stored = localStorage.getItem('pokepoke.apiBase'); } catch { /* modo privado */ }
+      const override = window.POKEPOKE_API_BASE || (meta && meta.content) || stored;
+      const fallback = window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : window.location.origin;
+      this.baseUrl = String(baseUrl || override || fallback).trim().replace(/\/+$/, '');
       this.token = sessionStorage.getItem('hoennTrainerToken') || null;
       this.isOnline = false;
       this.lastHealthCheck = 0;
@@ -198,6 +203,15 @@
       };
     }
 
+    /** Lee JSON del backend y avisa claramente si la URL solo sirve archivos estáticos. */
+    async parseApiResponse(res) {
+      const type = res.headers.get('content-type') || '';
+      if (!type.includes('json')) {
+        throw new Error('Esta dirección no tiene el servidor del juego (hosting estático): usa una cuenta local o entra como invitado.');
+      }
+      return res.json();
+    }
+
     async register(username, password, starterId = 2, email = null, avatarStyle = 'brendan') {
       try {
         const res = await fetch(`${this.baseUrl}/api/auth/register`, {
@@ -212,10 +226,10 @@
           })
         });
         if (!res.ok) {
-          const err = await res.json();
+          const err = await this.parseApiResponse(res);
           throw new Error(err.detail || 'Error al registrar usuario');
         }
-        const data = await res.json();
+        const data = await this.parseApiResponse(res);
         this.token = data.token;
         sessionStorage.setItem('hoennTrainerToken', this.token);
         localStorage.setItem('pokepoke_user', JSON.stringify({ username: data.username, token: this.token }));

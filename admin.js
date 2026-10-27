@@ -1047,7 +1047,7 @@ window.PVP_BUILD_VERSION = 23;
           exits: fallback.exits || [],
           signs: fallback.signs || [],
           seats: fallback.seats || [],
-          flowerPatches: fallback.flowerPatches || [],
+          flowerPatches: window.GrassPatches ? window.GrassPatches.ensure(fallback) : (fallback.flowerPatches || []),
           isDark: fallback.isDark || false
         });
       }
@@ -1143,7 +1143,9 @@ window.PVP_BUILD_VERSION = 23;
     const npcs = fullMap.npcs || localMap.npcs || [];
     const signs = fullMap.signs || localMap.signs || [];
     const exits = fullMap.exits || localMap.exits || [];
-    const flowerPatches = fullMap.flowerPatches || localMap.flowerPatches || [];
+    const flowerPatches = window.GrassPatches
+      ? window.GrassPatches.ensure(fullMap)
+      : (fullMap.flowerPatches || localMap.flowerPatches || []);
 
     // Items de la zona unificada
     const mapItems = (fullMap.items || []).map(item => {
@@ -1370,6 +1372,7 @@ window.PVP_BUILD_VERSION = 23;
             <div class="world3d-hud" id="world3dHud">
               <span class="w3d-pill"><span class="w3d-live"></span><i class="fas fa-cube"></i> MUNDO 3D</span>
               <span class="w3d-pill"><i class="fas fa-users"></i> <b id="world3dOnline">—</b></span>
+              <span class="w3d-pill w3d-wild" id="world3dWild" style="display:none"><i class="fas fa-seedling"></i> Pokémon salvajes</span>
               <span class="w3d-pill w3d-hint"><i class="fas fa-mouse"></i> Arrastra para girar · Rueda = zoom · R = cámara</span>
               <span class="w3d-pill w3d-hint" id="world3dFps">—</span>
             </div>

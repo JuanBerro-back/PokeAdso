@@ -11,6 +11,7 @@ Un RPG de Pokémon en HTML5 / Canvas / JavaScript con backend en Python (FastAPI
   - Renderizado de tiles de alta resolución en HTML5 Canvas con soporte para arrastre y zoom suave.
   - Enfoque continuo y seguimiento suave de cámara sobre el personaje (Brendan / Bruno).
   - **Zoom dinámico**: Acercamiento automático estilo GBA al caminar.
+  - **Zonas de Pokémon salvajes visibles**: cada ruta con encuentros muestra sus parches de hierba alta (arbustos) en 2D y 3D; al pisarlos, el HUD avisa con la pastilla **“Pokémon salvajes”**.
   - **HUD Auténtico de Pokémon Esmeralda**: Banner de localización animado, PokéNav con radar/coordenadas y barra de controles GBA.
   - **Recolección de Objetos**: 94 sprites de items auténticos distribuidos en el mapa, con recompensa de +50 monedas y registro en inventario.
 
@@ -81,6 +82,14 @@ Un RPG de Pokémon en HTML5 / Canvas / JavaScript con backend en Python (FastAPI
    ```
 3. En el menú lateral, selecciona **"🗺️ Mapa Completo"** para disfrutar de Hoenn y todas sus funciones.
 
+### Publicación estática (GitHub Pages)
+
+La interfaz (`admin.html` + `modules/` + `data/` + `assets/`) funciona sin backend. En ese caso:
+
+- Las cuentas se crean **en el propio navegador** (`pokepoke.localAccounts`, contraseña hasheada con SHA-256) y la pantalla de acceso indica **“Modo local (sin servidor)”**.
+- El MMO, el chat y la presencia por WebSocket se desactivan (no hay `/ws/lobby`).
+- Si alojas la API en otro dominio, indícalo con `<meta name="pokepoke-api" content="https://tu-api">` en `admin.html` o con `localStorage.setItem('pokepoke.apiBase', 'https://tu-api')`.
+
 ---
 
 ## 📦 Compilación a `.exe` (Windows)
@@ -101,6 +110,7 @@ Para generar un ejecutable `.exe` portable sin necesidad de que otros usuarios t
 ├── map_tiles/          # Tiles del mapa de Hoenn (Overworld y Underwater)
 ├── marker_icons/       # Iconos de marcadores (entradas, entrenadores, items)
 ├── modules/            # Motores de renderizado (tilemap_renderer.js, etc.)
+├── modules/grass_patches.js  # Zonas deterministas de hierba alta / encuentros
 ├── modules/world3d.js  # Dioramas 3D para todos los mapas
 ├── modules/battle3d.js # Arena 3D de combate
 ├── modules/world3d.css # HUD, panel social y estilos 3D
@@ -122,6 +132,8 @@ Para generar un ejecutable `.exe` portable sin necesidad de que otros usuarios t
 - El modo se activa por defecto y se recuerda en `localStorage` (`pokepoke.world3d`); la bandana elegida se guarda en `pokepoke.bandana`.
 - La lógica de movimiento, colisiones, encuentros y combate permanece en el motor GBA (`tilemap_renderer.js` + `admin.js`). `world3d.js` y `battle3d.js` solo leen ese estado y dibujan la capa 3D, de modo que apagar el 3D no cambia la jugabilidad.
 - No hay que instalar Node ni ejecutar un build: `three.min.js` está vendorizado y se sirve junto al resto de módulos estáticos.
+- **Hierba alta / zonas de encuentro**: `grass_patches.js` genera zonas deterministas por mapa (semilla = id del mapa) y las reutiliza para pintar los arbustos, marcar los tiles `TALL_GRASS` y decidir los encuentros. Los mapas sin `encounters` sólo muestran flores decorativas.
+- La vegetación 3D se dibuja con `InstancedMesh` (una malla por tono) y la densidad se ajusta según el área del mapa para que el Overworld completo no sature la GPU.
 - El lobby 3D toma como referencia visual el template **PokePoke Multiplayer Lobby (Kimi Agent)**, adaptando su estética de hotel, avatares y terminal de bandana al WebSocket y al backend Python ya existentes.
 
 ---

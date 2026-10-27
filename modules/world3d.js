@@ -87,6 +87,54 @@
     ctx.closePath();
   }
 
+  let BLADE_GEOMETRY = null;
+  function bladeGeometry() {
+    if (BLADE_GEOMETRY) return BLADE_GEOMETRY;
+    const height = 0.72;
+    // Hoja de hierba curva: 3 segmentos que se afinan hacia la punta.
+    const segments = [
+      { y: 0, w: 0.11, bend: 0 },
+      { y: 0.36, w: 0.085, bend: 0.03 },
+      { y: 0.7, w: 0.05, bend: 0.08 },
+      { y: 1, w: 0, bend: 0.14 },
+    ];
+    const positions = [];
+    const uvs = [];
+    segments.forEach((segment, index) => {
+      const y = segment.y * height;
+      const half = segment.w / 2;
+      positions.push(segment.bend - half, y, 0, segment.bend + half, y, 0);
+      uvs.push(0, index / (segments.length - 1), 1, index / (segments.length - 1));
+    });
+    const indices = [];
+    for (let i = 0; i < segments.length - 1; i += 1) {
+      const a = i * 2;
+      indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+    BLADE_GEOMETRY = geometry;
+    return geometry;
+  }
+
+  let GRASS_DECAL_TEXTURE = null;
+  function grassDecalTexture() {
+    if (GRASS_DECAL_TEXTURE) return GRASS_DECAL_TEXTURE;
+    const canvas = makeCanvas(64, 64);
+    const ctx = canvas.getContext('2d');
+    const gradient = ctx.createRadialGradient(32, 32, 4, 32, 32, 32);
+    gradient.addColorStop(0, 'rgba(58, 138, 66, 0.62)');
+    gradient.addColorStop(0.6, 'rgba(42, 112, 54, 0.46)');
+    gradient.addColorStop(1, 'rgba(28, 84, 40, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 64, 64);
+    GRASS_DECAL_TEXTURE = canvasTexture(canvas, { smooth: true });
+    return GRASS_DECAL_TEXTURE;
+  }
+
   function labelTexture(text, options = {}) {
     const canvas = makeCanvas(512, 128);
     const ctx = canvas.getContext('2d');
@@ -513,6 +561,12 @@
       this.signs = options.signs || this.map.signs || [];
       this.seats = options.seats || this.map.seats || [];
       this.flowerPatches = options.flowerPatches || this.map.flowerPatches || [];
+      this.hasWildEncounters = !!(
+        this.map
+        && this.map.encounters
+        && Array.isArray(this.map.encounters.pokemon)
+        && this.map.encounters.pokemon.length
+      );
       this.weatherType = detectWeather(this.mapId);
 
       this.enabled = true;
@@ -1208,37 +1262,183 @@
         }
       }
 
-      // Flores/hierba alta en 3D sobre los parches del mapa.
-      const patchData = this.flowerPatches || [];
-      patchData.forEach((patch) => {
-        const px = patch.x / UNIT;
-        const pz = patch.y / UNIT;
-        const pw = Math.max(0.8, patch.w / UNIT);
-        const ph = Math.max(0.8, patch.h / UNIT);
-        const count = Math.min(46, Math.max(8, Math.floor(pw * ph * 1.7)));
-        for (let i = 0; i < count; i++) {
-          const x = px + random() * pw;
-          const z = pz + random() * ph;
-          const stem = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.018, 0.026, 0.28, 4),
-            new THREE.MeshStandardMaterial({ color: 0x2f7a3d, roughness: 1 }),
-          );
-          stem.position.set(x, 0.14, z);
-          this.root.add(stem);
-          const flower = new THREE.Mesh(
-            new THREE.IcosahedronGeometry(0.08, 0),
-            new THREE.MeshStandardMaterial({
-              color: new THREE.Color([theme.flower, 0xffffff, 0xe66d61, 0xe6ad45][i % 4]),
-              emissive: 0x221100,
-              emissiveIntensity: 0.08,
-              roughness: 0.8,
-            }),
-          );
-          flower.position.set(x, 0.3 + random() * 0.08, z);
-          flower.castShadow = true;
-          this.root.add(flower);
+      // Arbustos de hierba alta en 3D: señalan dónde salen Pokémon salvajes.
+      this.buildWildGrass(random);
+    }
+
+    /**
+     * Hierba alta instanciada sobre cada zona de encuentros. Además de las matas
+     * se pinta una mancha en el suelo para que la zona se distinga desde lejos.
+     */
+    buildWildGrass(random) {
+      const patches = Array.isArray(this.flowerPatches) ? this.flowerPatches : [];
+      if (!patches.length) return;
+      const rng = typeof random === 'function' ? random : seededRandom(hashString(`${this.mapId}-grass`));
+
+      // Sin Pokémon salvajes (interiores, ciudades...) los parches son sólo
+      // decorativos: flores en vez de arbustos de encuentro.
+      if (!this.hasWildEncounters) {
+        this.buildFlowerBeds(patches, rng);
+        return;
+      }
+
+      const blades = [];
+      const tints = [0x0f3a17, 0x14521f, 0x1a6226, 0x0c2f12, 0x22702c];
+
+      // En mapas enormes (overworld, underwater) hay que separar las matas para
+      // no generar decenas de miles de instancias. El total queda acotado.
+      let totalArea = 0;
+      patches.forEach((patch) => {
+        const pw = Math.max(1, Number(patch.w) / UNIT);
+        const ph = Math.max(1, Number(patch.h) / UNIT);
+        if (Number.isFinite(pw) && Number.isFinite(ph)) totalArea += pw * ph;
+      });
+      const step = Math.max(0.52, Math.sqrt(totalArea / 2000));
+
+      patches.forEach((patch) => {
+        const px = Number(patch.x) / UNIT;
+        const pz = Number(patch.y) / UNIT;
+        const pw = Math.max(1, Number(patch.w) / UNIT);
+        const ph = Math.max(1, Number(patch.h) / UNIT);
+        if (!Number.isFinite(px) || !Number.isFinite(pz)) return;
+
+        const decal = new THREE.Mesh(
+          new THREE.PlaneGeometry(pw + 0.5, ph + 0.5),
+          new THREE.MeshBasicMaterial({
+            map: grassDecalTexture(),
+            transparent: true,
+            opacity: 0.75,
+            depthWrite: false,
+          }),
+        );
+        decal.rotation.x = -Math.PI / 2;
+        decal.position.set(px + pw / 2, 0.032, pz + ph / 2);
+        decal.renderOrder = 1;
+        this.root.add(decal);
+
+        for (let x = px + 0.18; x < px + pw - 0.1; x += step) {
+          for (let z = pz + 0.18; z < pz + ph - 0.1; z += step) {
+            if (rng() > 0.86) continue;
+            const clusterX = x + (rng() - 0.5) * step * 0.85;
+            const clusterZ = z + (rng() - 0.5) * step * 0.85;
+            const count = 3 + Math.floor(rng() * 3);
+            for (let i = 0; i < count; i += 1) {
+              blades.push({
+                x: clusterX + (rng() - 0.5) * 0.3,
+                z: clusterZ + (rng() - 0.5) * 0.3,
+                rot: rng() * Math.PI,
+                tilt: (rng() - 0.5) * 0.42,
+                scale: 0.75 + rng() * 0.65,
+                color: tints[Math.floor(rng() * tints.length)],
+              });
+            }
+          }
         }
       });
+
+      if (!blades.length) return;
+      // Un InstancedMesh por tono: evita depender del color por instancia y
+      // mantiene la hierba en pocas llamadas de dibujo.
+      const byTint = new Map();
+      blades.forEach((blade) => {
+        if (!byTint.has(blade.color)) byTint.set(blade.color, []);
+        byTint.get(blade.color).push(blade);
+      });
+      const dummy = new THREE.Object3D();
+      this.wildGrassMeshes = [];
+      byTint.forEach((list, tint) => {
+        const mesh = new THREE.InstancedMesh(
+          bladeGeometry(),
+          new THREE.MeshStandardMaterial({
+            color: tint,
+            roughness: 0.9,
+            metalness: 0,
+            side: THREE.DoubleSide,
+            flatShading: true,
+          }),
+          list.length,
+        );
+        list.forEach((blade, index) => {
+          dummy.position.set(blade.x, 0.02, blade.z);
+          dummy.rotation.set(blade.tilt, blade.rot, blade.tilt * 0.55);
+          dummy.scale.set(1, blade.scale, 1);
+          dummy.updateMatrix();
+          mesh.setMatrixAt(index, dummy.matrix);
+        });
+        mesh.instanceMatrix.needsUpdate = true;
+        mesh.castShadow = false;
+        mesh.receiveShadow = false;
+        this.root.add(mesh);
+        this.wildGrassMeshes.push(mesh);
+      });
+      this.wildGrass = this.wildGrassMeshes[0] || null;
+    }
+
+    /**
+     * Parche decorativo (sin encuentros): matas de flores bajas, sin la mancha
+     * de hierba alta ni el aviso de Pokémon salvajes.
+     */
+    buildFlowerBeds(patches, rng) {
+      const stems = [];
+      const blossoms = [];
+      const colors = [0xf2d24b, 0xef7a6d, 0xf5f2e8, 0x9b7bdc, 0xf0a04b];
+      patches.forEach((patch) => {
+        const px = Number(patch.x) / UNIT;
+        const pz = Number(patch.y) / UNIT;
+        const pw = Math.max(1, Number(patch.w) / UNIT);
+        const ph = Math.max(1, Number(patch.h) / UNIT);
+        if (!Number.isFinite(px) || !Number.isFinite(pz)) return;
+        const count = Math.min(48, Math.max(6, Math.floor((pw * ph) / 5)));
+        for (let i = 0; i < count; i += 1) {
+          const x = px + 0.2 + rng() * Math.max(0.2, pw - 0.4);
+          const z = pz + 0.2 + rng() * Math.max(0.2, ph - 0.4);
+          const height = 0.22 + rng() * 0.14;
+          stems.push({ x, z, height });
+          blossoms.push({ x, z, y: height + 0.02, color: colors[Math.floor(rng() * colors.length)], scale: 0.75 + rng() * 0.5 });
+        }
+      });
+      if (!stems.length) return;
+      const stemMesh = new THREE.InstancedMesh(
+        new THREE.CylinderGeometry(0.014, 0.02, 1, 4),
+        new THREE.MeshStandardMaterial({ color: 0x2f6b3a, roughness: 1 }),
+        stems.length,
+      );
+      const dummy = new THREE.Object3D();
+      stems.forEach((stem, index) => {
+        dummy.position.set(stem.x, stem.height / 2, stem.z);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(1, stem.height, 1);
+        dummy.updateMatrix();
+        stemMesh.setMatrixAt(index, dummy.matrix);
+      });
+      const tinted = new Map();
+      blossoms.forEach((blossom, index) => {
+        if (!tinted.has(blossom.color)) tinted.set(blossom.color, []);
+        tinted.get(blossom.color).push({ ...blossom, index });
+      });
+      // Un mesh por color para que las flores no dependan del color por instancia.
+      const flowerMeshes = [];
+      tinted.forEach((list, color) => {
+        const mesh = new THREE.InstancedMesh(
+          new THREE.IcosahedronGeometry(0.075, 0),
+          new THREE.MeshStandardMaterial({ color, roughness: 0.8 }),
+          list.length,
+        );
+        list.forEach((blossom, i) => {
+          dummy.position.set(blossom.x, blossom.y, blossom.z);
+          dummy.rotation.set(0, 0, 0);
+          dummy.scale.setScalar(blossom.scale);
+          dummy.updateMatrix();
+          mesh.setMatrixAt(i, dummy.matrix);
+        });
+        mesh.instanceMatrix.needsUpdate = true;
+        mesh.castShadow = false;
+        this.root.add(mesh);
+        flowerMeshes.push(mesh);
+      });
+      stemMesh.instanceMatrix.needsUpdate = true;
+      this.root.add(stemMesh);
+      this.flowerMeshes = [stemMesh].concat(flowerMeshes);
     }
 
     addPlant(x, z, scale = 1) {
@@ -1956,6 +2156,25 @@
       this.camera.lookAt(this.cameraTarget.x, this.cameraTarget.y + 0.25, this.cameraTarget.z);
     }
 
+    /** Muestra un aviso en el HUD cuando el entrenador pisa hierba alta. */
+    updateWildZoneHint() {
+      const badge = document.getElementById('world3dWild');
+      if (!badge) return;
+      const pos = this.view && this.view.playerPos;
+      const patches = this.flowerPatches;
+      let inside = null;
+      if (this.hasWildEncounters && pos && Array.isArray(patches) && patches.length) {
+        inside = window.GrassPatches
+          ? window.GrassPatches.at(patches, pos.x, pos.y)
+          : patches.find((patch) => pos.x >= patch.x && pos.x <= patch.x + patch.w && pos.y >= patch.y && pos.y <= patch.y + patch.h);
+      }
+      const show = inside ? '1' : '0';
+      if (badge.dataset.wild !== show) {
+        badge.dataset.wild = show;
+        badge.style.display = inside ? '' : 'none';
+      }
+    }
+
     /* ------------------------------ Bucle ---------------------------------- */
     loop() {
       if (this.disposed) return;
@@ -1973,6 +2192,7 @@
       this.syncNpcs(dt, now);
       this.syncItems();
       this.updateCamera(dt);
+      this.updateWildZoneHint();
 
       if (this.dust) {
         this.dust.rotation.y += dt * 0.012;
@@ -2179,10 +2399,10 @@
     disposeRoot() {
       if (!this.root) return;
       this.root.traverse((object) => {
-        if (object.geometry) object.geometry.dispose();
+        if (object.geometry && object.geometry !== BLADE_GEOMETRY) object.geometry.dispose();
         const materials = Array.isArray(object.material) ? object.material : (object.material ? [object.material] : []);
         materials.forEach((material) => {
-          if (material.map && material.map !== global.__pokepokeBrendanSheet?.texture) material.map.dispose();
+          if (material.map && material.map !== global.__pokepokeBrendanSheet?.texture && material.map !== GRASS_DECAL_TEXTURE) material.map.dispose();
           material.dispose();
         });
       });
