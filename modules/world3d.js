@@ -1294,6 +1294,8 @@
         if (Number.isFinite(pw) && Number.isFinite(ph)) totalArea += pw * ph;
       });
       const step = Math.max(0.52, Math.sqrt(totalArea / 2000));
+      // En mapas enormes las matas también crecen para que se lean desde lejos.
+      const densityScale = Math.min(1.7, Math.max(1, step / 0.52));
 
       patches.forEach((patch) => {
         const px = Number(patch.x) / UNIT;
@@ -1361,7 +1363,8 @@
         list.forEach((blade, index) => {
           dummy.position.set(blade.x, 0.02, blade.z);
           dummy.rotation.set(blade.tilt, blade.rot, blade.tilt * 0.55);
-          dummy.scale.set(1, blade.scale, 1);
+          const grow = Math.min(1.6, blade.scale * densityScale);
+          dummy.scale.set(densityScale, grow, densityScale);
           dummy.updateMatrix();
           mesh.setMatrixAt(index, dummy.matrix);
         });
