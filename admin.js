@@ -1048,6 +1048,7 @@ window.PVP_BUILD_VERSION = 23;
           signs: fallback.signs || [],
           seats: fallback.seats || [],
           flowerPatches: window.GrassPatches ? window.GrassPatches.ensure(fallback) : (fallback.flowerPatches || []),
+          terrain: window.TerrainPatches ? window.TerrainPatches.ensure(fallback) : null,
           isDark: fallback.isDark || false
         });
       }
@@ -1146,6 +1147,7 @@ window.PVP_BUILD_VERSION = 23;
     const flowerPatches = window.GrassPatches
       ? window.GrassPatches.ensure(fullMap)
       : (fullMap.flowerPatches || localMap.flowerPatches || []);
+    const terrain = window.TerrainPatches ? window.TerrainPatches.ensure(fullMap) : null;
 
     // Items de la zona unificada
     const mapItems = (fullMap.items || []).map(item => {
@@ -1177,6 +1179,7 @@ window.PVP_BUILD_VERSION = 23;
       exits: exits,
       stairs: fullMap.stairs || [],
       flowerPatches: flowerPatches,
+      terrain: terrain,
       seats: fullMap.seats || localMap.seats || [],
       weather: fullMap.weather || localMap.weather || 'none',
       isDark: fullMap.isDark || localMap.isDark || false,
@@ -1210,6 +1213,15 @@ window.PVP_BUILD_VERSION = 23;
       onEncounter: () => {
         App.triggerWildEncounter();
       },
+      onBlocked: (dx, dy, targetX, targetY) => {
+        if (!terrain || !window.TerrainPatches) return;
+        const mountain = window.TerrainPatches.at(terrain, targetX + 8, targetY + 8, 0.95);
+        if (!mountain) return;
+        const now = Date.now();
+        if (now - (App.__lastMountainBump || 0) < 3500) return;
+        App.__lastMountainBump = now;
+        App.showNotification('La ladera rocosa bloquea el paso. Busca otra ruta.', 'warning');
+      },
       onItemCollect: (item) => {
         collectedItems[item.id] = true;
         trainerState.inventory.coins = (trainerState.inventory.coins || 0) + 50;
@@ -1235,6 +1247,7 @@ window.PVP_BUILD_VERSION = 23;
       signs: signs,
       seats: fullMap.seats || localMap.seats || [],
       flowerPatches: flowerPatches,
+      terrain: terrain,
       isDark: !!(fullMap.isDark || localMap.isDark)
     });
     if (inMapBattle) initBattle3D();

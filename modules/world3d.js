@@ -561,6 +561,7 @@
       this.signs = options.signs || this.map.signs || [];
       this.seats = options.seats || this.map.seats || [];
       this.flowerPatches = options.flowerPatches || this.map.flowerPatches || [];
+      this.terrain = options.terrain || this.map._terrainPatches || null;
       this.hasWildEncounters = !!(
         this.map
         && this.map.encounters
@@ -696,6 +697,7 @@
         this.buildExitsSignsItems();
       } else {
         this.buildObstacles();
+        this.buildMountains();
         this.buildDecorations();
         this.buildExitsSignsItems();
         this.buildSeats();
@@ -1083,6 +1085,156 @@
       });
     }
 
+    /** ¿La posición (en unidades 3D) cae dentro de una montaña? */
+    isInsideMountain(x, z, factor = 0.98) {
+      const terrain = this.terrain;
+      if (!terrain || !Array.isArray(terrain.mountains)) return false;
+      const px = x * UNIT;
+      const pz = z * UNIT;
+      return terrain.mountains.some((m) => {
+        const dx = (px - m.x) / (m.rx * factor);
+        const dz = (pz - m.y) / (m.ry * factor);
+        return dx * dx + dz * dz <= 1;
+      });
+    }
+
+    /**
+     * Montañas con geometría real: malla radial con crestas, colores por altura
+     * y rocas al pie. Su base está marcada como sólida en el mapa de colisiones.
+     */
+    buildMountains() {
+      const terrain = this.terrain;
+      if (!terrain || !Array.isArray(terrain.mountains) || !terrain.mountains.length) return;
+      this.mountainMeshes = [];
+      const boulders = [];
+      const TAU2 = Math.PI * 2;
+
+      terrain.mountains.forEach((mountain) => {
+        const cx = mountain.x / UNIT;
+        const cz = mountain.y / UNIT;
+        const rx = mountain.rx / UNIT;
+        const ry = mountain.ry / UNIT;
+        const peak = mountain.peak;
+        const random = seededRandom(mountain.seed >>> 0);
+        const rings = 10;
+        const segments = 28;
+        const positions = [];
+        const colors = [];
+        const indices = [];
+        // Paleta de roca de Hoenn. Los valores son bajos a propósito: el diorama
+        // usa ACES + luces fuertes y, si no, la roca se quema a blanco.
+        const grassColor = new THREE.Color(0x21391c);
+        const mossColor = new THREE.Color(0x2f3a1e);
+        const rockColor = new THREE.Color(0x2c271d);
+        const stoneColor = new THREE.Color(0x3b3327);
+        const highColor = new THREE.Color(0x4b4131);
+        const creamColor = new THREE.Color(0x5a4f3c);
+        const ridgeA = random() * TAU2;
+        const ridgeB = random() * TAU2;
+        const lobes = 3 + Math.floor(random() * 2);
+
+        // Cumbre ligeramente desplazada para que no sea un cono perfecto.
+        const apexY = peak;
+        positions.push(cx + (random() - 0.5) * rx * 0.18, apexY, cz + (random() - 0.5) * ry * 0.18);
+        colors.push(creamColor.r * 0.34, creamColor.g * 0.34, creamColor.b * 0.34);
+
+        for (let ring = 1; ring <= rings; ring += 1) {
+          const t = ring / rings;
+          for (let seg = 0; seg < segments; seg += 1) {
+            const angle = (seg / segments) * TAU2;
+            // Contrafuertes: la base se abre en lóbulos y la cumbre se afila.
+            const buttress = 1
+              + 0.16 * Math.sin(angle * lobes + ridgeA) * (1 - t * 0.45)
+              + 0.06 * Math.sin(angle * 7 + ridgeB + t * 2.6);
+            const rr = t * buttress;
+            const x = cx + Math.cos(angle) * rx * rr;
+            const z = cz + Math.sin(angle) * ry * rr;
+            const profile = Math.pow(1 - t, 1.18);
+            const crest = 1
+              + 0.10 * Math.sin(angle * lobes + ridgeA * 1.7) * (1 - t * 0.6)
+              + 0.05 * Math.sin(angle * 9 + t * 6.2);
+            const y = Math.max(0, peak * profile * crest * (0.97 + random() * 0.06));
+            positions.push(x, y, z);
+
+            const h = Math.min(1, y / Math.max(0.001, peak));
+            const color = new THREE.Color();
+            if (h < 0.10) color.copy(grassColor).lerp(mossColor, h / 0.10);
+            else if (h < 0.30) color.copy(mossColor).lerp(rockColor, (h - 0.10) / 0.20);
+            else if (h < 0.62) color.copy(rockColor).lerp(stoneColor, (h - 0.30) / 0.32);
+            else if (h < 0.85) color.copy(stoneColor).lerp(highColor, (h - 0.62) / 0.23);
+            else color.copy(highColor).lerp(creamColor, (h - 0.85) / 0.15);
+            const shade = (0.86 + random() * 0.14) * 0.34;
+            colors.push(color.r * shade, color.g * shade, color.b * shade);
+          }
+        }
+
+        for (let seg = 0; seg < segments; seg += 1) {
+          indices.push(0, 1 + seg, 1 + ((seg + 1) % segments));
+        }
+        for (let ring = 0; ring < rings - 1; ring += 1) {
+          const base = 1 + ring * segments;
+          const nextBase = base + segments;
+          for (let seg = 0; seg < segments; seg += 1) {
+            const n = (seg + 1) % segments;
+            indices.push(base + seg, nextBase + seg, base + n);
+            indices.push(base + n, nextBase + seg, nextBase + n);
+          }
+        }
+
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        geometry.setIndex(indices);
+        geometry.computeVertexNormals();
+
+        const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
+          vertexColors: true,
+          roughness: 0.96,
+          metalness: 0,
+          flatShading: true,
+          side: THREE.DoubleSide,
+        }));
+        mesh.name = mountain.id || 'world3d-mountain';
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        this.root.add(mesh);
+        this.mountainMeshes.push(mesh);
+
+        const stones = 6 + Math.floor(random() * 5);
+        for (let i = 0; i < stones; i += 1) {
+          const angle = random() * Math.PI * 2;
+          const rr = 0.82 + random() * 0.2;
+          boulders.push({
+            x: cx + Math.cos(angle) * rx * rr,
+            z: cz + Math.sin(angle) * ry * rr,
+            scale: 0.18 + random() * 0.38,
+            rot: random() * Math.PI,
+          });
+        }
+      });
+
+      if (boulders.length) {
+        const mesh = new THREE.InstancedMesh(
+          new THREE.IcosahedronGeometry(1, 0),
+          new THREE.MeshStandardMaterial({ color: 0x15130d, roughness: 0.97, flatShading: true }),
+          boulders.length,
+        );
+        const dummy = new THREE.Object3D();
+        boulders.forEach((stone, index) => {
+          dummy.position.set(stone.x, stone.scale * 0.55, stone.z);
+          dummy.rotation.set(0, stone.rot, 0);
+          dummy.scale.set(stone.scale, stone.scale * 0.8, stone.scale);
+          dummy.updateMatrix();
+          mesh.setMatrixAt(index, dummy.matrix);
+        });
+        mesh.instanceMatrix.needsUpdate = true;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        this.root.add(mesh);
+        this.mountainRocks = mesh;
+      }
+    }
+
     buildDecorations() {
       const theme = this.theme;
       const width = this.mapWidth / UNIT;
@@ -1192,18 +1344,21 @@
           }
         }
 
+        // Los árboles no deben atravesar las montañas.
+        const treePositions = positions.filter(([x, z]) => !this.isInsideMountain(x, z, 1.02));
+
         const trunks = new THREE.InstancedMesh(
           trunkGeometry,
           new THREE.MeshStandardMaterial({ color: 0x714631, roughness: 0.95 }),
-          positions.length,
+          treePositions.length,
         );
         const crowns = new THREE.InstancedMesh(
           crownGeometry,
           new THREE.MeshStandardMaterial({ color: theme.tree, roughness: 0.92, flatShading: true }),
-          positions.length,
+          treePositions.length,
         );
         const dummy = new THREE.Object3D();
-        positions.forEach(([x, z], index) => {
+        treePositions.forEach(([x, z], index) => {
           const scale = 0.8 + random() * 0.55;
           dummy.position.set(x, 0.45 * scale, z);
           dummy.scale.set(scale, scale, scale);
@@ -1237,21 +1392,6 @@
             pond.rotation.x = -Math.PI / 2;
             pond.position.set(x, 0.025, z);
             this.root.add(pond);
-          }
-          for (let i = 0; i < 12; i++) {
-            const x = 20 + random() * (width - 40);
-            const z = 20 + random() * (height - 40);
-            if (Math.hypot(x - width / 2, z - height / 2) < 22) continue;
-            const size = 2.2 + random() * 3.5;
-            const mountain = new THREE.Mesh(
-              new THREE.ConeGeometry(size, size * 1.7, 6),
-              new THREE.MeshStandardMaterial({ color: 0x8b8b74, roughness: 0.96, flatShading: true }),
-            );
-            mountain.position.set(x, size * 0.85, z);
-            mountain.rotation.y = random() * Math.PI;
-            mountain.castShadow = true;
-            mountain.receiveShadow = true;
-            this.root.add(mountain);
           }
         }
       } else if (theme.indoor && !this.imageUrl && theme.name !== 'hotel') {

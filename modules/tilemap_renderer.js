@@ -124,6 +124,7 @@
       this.signs = options.signs ? [...options.signs] : [];
       this.exits = options.exits || options.warps || [];
       this.flowerPatches = options.flowerPatches || [];
+      this.terrain = options.terrain || null;
       this.otherPlayers = options.otherPlayers || new Map();
       this.seats = options.seats || [];
       this.battleArena = options.battleArena || null;
@@ -145,6 +146,7 @@
         signs: this.signs,
         exits: this.exits,
         flowerPatches: this.flowerPatches,
+        terrain: this.terrain,
         stairs: this.stairs
       });
 
@@ -156,6 +158,7 @@
       this.onEncounter = options.onEncounter || null;
       this.onSeatInteract = options.onSeatInteract || null;
       this.onOtherPlayerClick = options.onOtherPlayerClick || null;
+      this.onBlocked = options.onBlocked || null;
       this.encounterRate = options.encounterRate || 0.14;
 
       // Assets y Caches
@@ -300,6 +303,28 @@
         }
       }
 
+      // 4b. Montañas: relieve 3D que también bloquea el paso en 2D.
+      const mountains = (mapData.terrain && mapData.terrain.mountains) || [];
+      for (const m of mountains) {
+        const factor = 0.86;
+        const rx = m.rx * factor;
+        const ry = m.ry * factor;
+        const x1 = Math.floor((m.x - rx) / TILE_LOGIC);
+        const y1 = Math.floor((m.y - ry) / TILE_LOGIC);
+        const x2 = Math.ceil((m.x + rx) / TILE_LOGIC);
+        const y2 = Math.ceil((m.y + ry) / TILE_LOGIC);
+        for (let y = y1; y < y2; y += 1) {
+          for (let x = x1; x < x2; x += 1) {
+            if (y < 0 || y >= rows || x < 0 || x >= cols) continue;
+            const cx = x * TILE_LOGIC + TILE_LOGIC / 2;
+            const cy = y * TILE_LOGIC + TILE_LOGIC / 2;
+            const dx = (cx - m.x) / rx;
+            const dy = (cy - m.y) / ry;
+            if (dx * dx + dy * dy <= 1) grid[y][x] = COLLISION_FLAGS.SOLID;
+          }
+        }
+      }
+
       // 5. Bordes perimetrales del mapa como SOLID (excepto donde hay exits)
       for (let y = 0; y < rows; y++) {
         for (let x = 0; x < cols; x++) {
@@ -417,6 +442,9 @@
       const targetY = this.startGridPos.y + dy * TILE_LOGIC;
 
       if (this.isBlocked(targetX, targetY)) {
+        if (typeof this.onBlocked === 'function') {
+          this.onBlocked(dx, dy, targetX, targetY);
+        }
         // Disparar bump lineal de 3px
         this.avatarState = 'COLLIDING';
         this.bumpFrame = 0;
@@ -1015,6 +1043,11 @@
           this.ctx.fillRect(fx, fy, 2, 2);
           this.ctx.fillRect(fx + 3, fy + 1, 2, 2);
         }
+
+        // Montañas con volumen (también bloquean el paso en la colisión 2D).
+        if (window.TerrainPatches && this.terrain) {
+          window.TerrainPatches.draw2D(this.ctx, this.terrain);
+        }
       }
     }
 
@@ -1518,6 +1551,7 @@
       this.signs = options.signs || [];
       this.exits = options.exits || options.warps || [];
       this.flowerPatches = options.flowerPatches || [];
+      this.terrain = options.terrain || null;
 
       // Reconstruir mapa de colisiones para la nueva zona
       this.collisionGrid = this.buildCollisionMap({
@@ -1527,7 +1561,8 @@
         npcs: this.npcs,
         signs: this.signs,
         exits: this.exits,
-        flowerPatches: this.flowerPatches
+        flowerPatches: this.flowerPatches,
+        terrain: this.terrain
       });
 
       if (options.spawn) {

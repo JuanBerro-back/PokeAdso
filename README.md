@@ -111,6 +111,7 @@ Para generar un ejecutable `.exe` portable sin necesidad de que otros usuarios t
 ├── marker_icons/       # Iconos de marcadores (entradas, entrenadores, items)
 ├── modules/            # Motores de renderizado (tilemap_renderer.js, etc.)
 ├── modules/grass_patches.js  # Zonas deterministas de hierba alta / encuentros
+├── modules/terrain_patches.js # Montañas 3D con colisión real (relieve del mapa)
 ├── modules/world3d.js  # Dioramas 3D para todos los mapas
 ├── modules/battle3d.js # Arena 3D de combate
 ├── modules/world3d.css # HUD, panel social y estilos 3D
@@ -133,6 +134,9 @@ Para generar un ejecutable `.exe` portable sin necesidad de que otros usuarios t
 - La lógica de movimiento, colisiones, encuentros y combate permanece en el motor GBA (`tilemap_renderer.js` + `admin.js`). `world3d.js` y `battle3d.js` solo leen ese estado y dibujan la capa 3D, de modo que apagar el 3D no cambia la jugabilidad.
 - No hay que instalar Node ni ejecutar un build: `three.min.js` está vendorizado y se sirve junto al resto de módulos estáticos.
 - **Hierba alta / zonas de encuentro**: `grass_patches.js` genera zonas deterministas por mapa (semilla = id del mapa) y las reutiliza para pintar los arbustos, marcar los tiles `TALL_GRASS` y decidir los encuentros. Los mapas sin `encounters` sólo muestran flores decorativas.
+- **Montañas con volumen**: `terrain_patches.js` coloca cadenas montañosas deterministas sobre una rejilla de ocupación real, respetando caminos, salidas, NPCs, objetos y la zona de aparición. En 2D se dibujan con relieve cenital (sombra, crestas y cumbre iluminada) y en 3D son mallas radiales con crestas, rocas al pie y sombras. Sus tiles quedan marcados como `SOLID`, así que bloquean el paso de verdad; al chocar aparece el aviso «La ladera rocosa bloquea el paso».
+  - Se excluyen interiores, cuevas, rutas marinas (105-109 y 124-134), `underwater`, el mapa `overworld` y los mapas con lámina oficial (`littleroot_town`, `petalburg_city`, `rustboro_city`).
+  - Como el terreno se genera con semilla por mapa, el mismo trayecto muestra siempre las mismas montañas en 2D y en 3D.
 - La vegetación 3D se dibuja con `InstancedMesh` (una malla por tono) y la densidad se ajusta según el área del mapa para que el Overworld completo no sature la GPU.
 - El lobby 3D toma como referencia visual el template **PokePoke Multiplayer Lobby (Kimi Agent)**, adaptando su estética de hotel, avatares y terminal de bandana al WebSocket y al backend Python ya existentes.
 
